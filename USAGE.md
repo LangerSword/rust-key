@@ -178,11 +178,24 @@ crontab -e
 # Add: 0 0 * * * /path/to/rotate-keylog.sh
 ```
 
-### Network Transmission (Future Feature)
-While not currently implemented, you could extend the code to send logs over the network:
-1. Add a networking crate (e.g., reqwest, tokio)
-2. Modify the logging function to batch and send logs
-3. Implement encryption for transmission
+### Network Transmission (Advanced Feature - Use with Extreme Caution)
+⚠️ **WARNING**: Transmitting keystroke data over networks poses severe security and legal risks.
+
+If you absolutely must implement this feature for authorized security testing:
+1. Ensure you have explicit written authorization
+2. Use strong encryption (TLS 1.3+) for all transmissions
+3. Authenticate both endpoints
+4. Implement secure key management
+5. Log all network transmissions
+6. Comply with data protection regulations (GDPR, CCPA, etc.)
+7. Consider: This may be illegal without proper authorization
+
+Implementation considerations:
+- Add a networking crate (e.g., reqwest with TLS, tokio)
+- Batch logs before transmission to reduce network overhead
+- Implement end-to-end encryption
+- Add authentication tokens
+- Include audit logging
 
 ## Troubleshooting Usage Issues
 
