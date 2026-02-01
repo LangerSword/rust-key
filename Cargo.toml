@@ -10,6 +10,10 @@ license = "MIT"
 # Linux dependencies (evdev for device input)
 evdev = { version = "0.12", optional = true }
 
+# Linux-specific dependencies for non-blocking I/O
+[target.'cfg(target_os = "linux")'.dependencies]
+nix = "0.23"
+
 # Cross-platform dependencies
 chrono = "0.4"
 serde = { version = "1.0", features = ["derive"] }
