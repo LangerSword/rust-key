@@ -421,7 +421,6 @@ rm .keylog.txt
 - ✅ USB auto-run script with interactive setup
 - 🚧 Windows implementation (stub ready)
 - 🚧 macOS implementation (stub ready)
-- 🚧 macOS implementation (stub ready)
 
 ## Contributing
 
