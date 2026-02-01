@@ -5,7 +5,7 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use chrono::Local;
 
-pub fn run_keylogger(log_path: &str) {
+pub fn run_keylogger(log_path: &str, _webhook_url: Option<String>) {
     println!("Windows keylogger support is under development.");
     println!("\nTo use this on Windows, you'll need to:");
     println!("1. Install Rust and cargo");

