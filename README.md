@@ -316,7 +316,7 @@ Note: This is for educational understanding only. Rootkit-like behavior may trig
 # This would need to be implemented in the Rust code using prctl crate
 
 # Hide log file
-sudo chattr +i keylog.txt  # Make immutable (requires root)
+sudo chattr +i keylog.txt  # Make immutable (prevents modification/deletion until flag is removed)
 mv keylog.txt .keylog.txt  # Hidden file (starts with dot)
 ```
 

