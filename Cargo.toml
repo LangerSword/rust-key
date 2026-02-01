@@ -1,0 +1,38 @@
+[package]
+name = "rust-key"
+version = "0.1.0"
+edition = "2021"
+authors = ["LangerSword"]
+description = "A cross-platform keylogger written in Rust with USB support"
+license = "MIT"
+
+[dependencies]
+# Linux dependencies (evdev for device input)
+evdev = { version = "0.12", optional = true }
+
+# Cross-platform dependencies
+chrono = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Windows dependencies
+[target.'cfg(target_os = "windows")'.dependencies]
+winapi = { version = "0.3", features = ["winuser", "wincon", "consoleapi"] }
+
+# macOS dependencies
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.9"
+core-graphics = "0.23"
+
+[features]
+default = ["linux-evdev"]
+linux-evdev = ["evdev"]
+
+[[bin]]
+name = "rust-key"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
