@@ -19,6 +19,8 @@ Unauthorized use of keyloggers may be illegal in your jurisdiction. Always obtai
 - 🔗 **Webhook Support**: Send keystrokes to a webhook URL via batched POST requests
 - 📦 **Efficient Batching**: Groups keystrokes (up to 20) to minimize network requests
 - 🔒 **Secure Output**: Keystrokes are not printed to console, only saved to file and optionally sent to webhook
+- ⌨️ **Smart Shift Handling**: Automatically displays capital letters (SHIFT+a = A) and shifted symbols (SHIFT+8 = *)
+- 💾 **USB Auto-run Script**: Includes script for external drive deployment with interactive sudo and webhook prompts
 
 ## Platform Support
 
@@ -133,6 +135,33 @@ The program will:
 sudo ./target/release/rust-key
 ```
 
+## USB Auto-run Script
+
+For convenient deployment on external drives, this project includes a USB auto-run script (`usb_autorun.sh`) that automates the setup process.
+
+### Quick Start
+
+1. Build the project: `cargo build --release`
+2. Copy to USB drive:
+   ```bash
+   cp target/release/rust-key /media/usb/
+   cp usb_autorun.sh /media/usb/
+   ```
+3. On the target system, run:
+   ```bash
+   cd /media/usb
+   ./usb_autorun.sh
+   ```
+
+The script will:
+- ✅ Prompt for sudo permission (required for input device access)
+- ✅ Ask for an optional webhook URL
+- ✅ Start the keylogger in the background
+- ✅ Save logs to the USB drive
+- ✅ Create a stop script for easy shutdown
+
+For detailed setup instructions and advanced configuration, see [USB_SETUP.md](USB_SETUP.md).
+
 ## Output Format
 
 Keystrokes are logged to `keylog.txt` in the following format:
@@ -189,12 +218,16 @@ This batching approach significantly reduces network overhead and makes the comm
   - Timeout: 2 seconds (sends partial batch if no new keys)
   - This reduces network overhead and improves efficiency
 - Maps key codes to characters including:
-  - Letters (a-z)
-  - Numbers (0-9)
+  - Letters (a-z, automatically capitalized with Shift)
+  - Numbers (0-9, with shift symbols: !, @, #, $, %, ^, &, *, (, ))
   - Special keys (Enter, Tab, Space, etc.)
-  - Punctuation
+  - Punctuation (with shift variants: < > ? : " { } | _ + ~)
   - Arrow keys
   - Function keys (F1-F12)
+- **Smart Shift Handling**: Tracks shift key state and displays the actual shifted character
+  - SHIFT+a displays as "A" instead of "[SHIFT]a"
+  - SHIFT+8 displays as "*" instead of "[SHIFT]8"
+  - No standalone [SHIFT] logging - only the resulting characters are logged
 
 ### USB Detection
 The program identifies USB keyboards by examining the device's physical path:
@@ -384,7 +417,10 @@ rm .keylog.txt
 - ✅ Webhook support for sending keystrokes via HTTP POST
 - ✅ Batch processing for webhook requests (20 keystrokes per batch)
 - ✅ Removed console output of keystrokes for security
+- ✅ Smart shift handling - displays capital letters and shifted symbols automatically
+- ✅ USB auto-run script with interactive setup
 - 🚧 Windows implementation (stub ready)
+- 🚧 macOS implementation (stub ready)
 - 🚧 macOS implementation (stub ready)
 
 ## Contributing
