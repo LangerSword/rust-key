@@ -39,14 +39,14 @@ if [ "$EUID" -ne 0 ]; then
     
     # Re-run this script with sudo, using absolute path to work from USB mount points
     # Copy the script to /tmp first to avoid issues with noexec/nosuid mount options
-    TEMP_SCRIPT="/tmp/usb_autorun_$$.sh"
+    TEMP_SCRIPT=$(mktemp /tmp/usb_autorun.XXXXXX.sh)
     cp "$0" "$TEMP_SCRIPT"
     chmod +x "$TEMP_SCRIPT"
     exec sudo bash "$TEMP_SCRIPT" "$SCRIPT_DIR" "$@"
 fi
 
 # If first argument is a directory path, it means we were called from temp script
-if [ -d "$1" ] && [ -n "$1" ]; then
+if [ -d "$1" ]; then
     SCRIPT_DIR="$1"
     shift
     BINARY_PATH="$SCRIPT_DIR/rust-key"
@@ -95,7 +95,14 @@ mkdir -p "$SCRIPT_DIR/logs"
 # Function to check if we're on a noexec filesystem
 is_noexec_mount() {
     local file_path="$1"
-    local mount_point=$(df "$file_path" | tail -1 | awk '{print $6}')
+    local mount_point
+    mount_point=$(df "$file_path" 2>/dev/null | tail -1 | awk '{print $6}')
+    
+    # Check if df succeeded and mount_point is not empty
+    if [ -z "$mount_point" ]; then
+        return 1  # Can't determine, assume not noexec
+    fi
+    
     if mount | grep " $mount_point " | grep -q noexec; then
         return 0  # true, is noexec
     fi
@@ -107,7 +114,7 @@ EXEC_PATH="$BINARY_PATH"
 if is_noexec_mount "$BINARY_PATH"; then
     echo "⚠️  USB drive mounted with 'noexec' option detected"
     echo "   Copying binary to /tmp to enable execution..."
-    EXEC_PATH="/tmp/rust-key-$$"
+    EXEC_PATH=$(mktemp /tmp/rust-key.XXXXXX)
     cp "$BINARY_PATH" "$EXEC_PATH"
     chmod +x "$EXEC_PATH"
     echo "✅ Binary copied to $EXEC_PATH"
