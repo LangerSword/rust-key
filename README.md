@@ -163,13 +163,20 @@ For convenient deployment on external drives, this project includes a USB auto-r
    ```
 
 The script will:
+- ✅ Display a prominent warning and require user confirmation
+- ✅ Offer an optional educational demonstration (safe password capture demo)
 - ✅ Prompt for sudo permission (required for input device access)
 - ✅ Ask for an optional webhook URL
 - ✅ Start the keylogger in the background
 - ✅ Save logs to the USB drive
 - ✅ Create a stop script for easy shutdown
 
-For detailed setup instructions and advanced configuration, see [USB_SETUP.md](USB_SETUP.md).
+### Detailed Documentation
+
+For detailed setup instructions and advanced configuration, see:
+- **[USB_SETUP.md](USB_SETUP.md)** - Complete USB deployment guide
+- **[99-usb-autorun.rules.example](99-usb-autorun.rules.example)** - Example udev rules for automatic USB execution
+- **[CRONTAB_SETUP.md](CRONTAB_SETUP.md)** - Guide for setting up automatic execution with crontab
 
 ## Output Format
 
