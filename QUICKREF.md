@@ -60,8 +60,8 @@ Features:
 If using USB autorun scripts, a stop script is automatically created:
 
 ```bash
-# Using the auto-generated stop script
-bash stop_keylogger.sh
+# Using the auto-generated stop script (from USB root)
+./stop_keylogger.sh
 
 # Or manually by PID
 PID=$(cat logs/keylogger.pid)
