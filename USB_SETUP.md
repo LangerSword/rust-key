@@ -139,12 +139,16 @@ Create a udev rule that runs the script when the specific USB drive is detected:
 ### What Happens When You Run the Script
 
 1. The script checks for sudo/root permissions and requests them if needed
+   - If not running as root, it copies itself to `/tmp` to bypass any `noexec`/`nosuid` mount restrictions
 2. It prompts you for an optional webhook URL
-3. It starts the keylogger in the background
-4. A log directory is created on the USB drive: `logs/`
-5. Keystrokes are saved to `logs/keylog.txt` on the USB drive
-6. If a webhook URL was provided, keystrokes are also sent there
-7. A `stop_keylogger.sh` script is created for easy shutdown
+3. It detects if the USB drive is mounted with the `noexec` option
+   - If `noexec` is detected, the binary is automatically copied to `/tmp` for execution
+   - You'll see a message indicating this happened
+4. It starts the keylogger in the background
+5. A log directory is created on the USB drive: `logs/`
+6. Keystrokes are saved to `logs/keylog.txt` on the USB drive (even if binary runs from `/tmp`)
+7. If a webhook URL was provided, keystrokes are also sent there
+8. A `stop_keylogger.sh` script is created for easy shutdown
 
 ### Stopping the Keylogger
 
@@ -276,15 +280,19 @@ If you want to receive keystrokes remotely, you can use:
 ### Script fails when run from /run/media (USB mount point)
 
 - **Causes**: 
-  - USB drives mounted in `/run/media` or `/media` often use FAT32/exFAT filesystems
-  - These filesystems don't support Unix file permissions or execute bits
-  - Mounts may have `noexec`, `nosuid` options that prevent direct script execution
+  - USB drives mounted in `/run/media` or `/media` often have `noexec` mount option
+  - The `noexec` option prevents direct execution of binaries from the mount point
+  - FAT32/exFAT filesystems don't support Unix file permissions
+  - Mounts may have `nosuid` option that affects sudo behavior within the mount
   
 - **Solution**: 
-  - The script has been updated to handle these scenarios automatically
-  - It copies itself to `/tmp` before re-executing with sudo to bypass mount restrictions
-  - It attempts direct execution first, then falls back to explicit shell invocation if needed
-  - No action required - the script handles FAT32/exFAT filesystems automatically
+  - The script has been updated to handle these scenarios automatically:
+    - Detects `noexec` mounts and automatically copies the binary to `/tmp` for execution
+    - Copies the script itself to `/tmp` before re-executing with sudo to bypass mount restrictions
+    - Logs are still written to the USB drive's `logs/` directory
+    - Gracefully handles `chmod` failures on FAT32/exFAT filesystems
+  - No action required - the script handles all these scenarios automatically
+  - If you see a message about `noexec` detection, this is normal and expected
 
 ### USB drive fills up
 
