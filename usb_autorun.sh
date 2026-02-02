@@ -118,9 +118,12 @@ if [ "$DEMO_CONFIRM" = "yes" ] || [ "$DEMO_CONFIRM" = "YES" ] || [ "$DEMO_CONFIR
     echo ""
     echo ""
     echo "✅ Demonstration complete!"
-    echo "   The keylogger would have captured: $TEST_PASSWORD"
+    echo "   The keylogger would have captured: ********** (${#TEST_PASSWORD} characters)"
     echo "   (This was just a demonstration - the keylogger isn't running yet)"
+    echo "   (Your actual test input is not shown for security)"
     echo ""
+    # Clear the variable immediately for security
+    unset TEST_PASSWORD
     echo "⚠️  Remember: Real keyloggers capture passwords without any prompts!"
     echo "   This is why you should:"
     echo "   • Only use keyloggers on systems you own"

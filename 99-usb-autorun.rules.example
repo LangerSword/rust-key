@@ -37,6 +37,10 @@
 # ALTERNATIVE: Run based on mount point label
 # This triggers when a specific volume label is mounted
 # Replace VOLUME_LABEL with your USB drive's label and adjust the path
+# Note: Complex quoting in udev rules can be error-prone. Consider creating a wrapper script:
+#   1. Create /usr/local/bin/run-usb-keylogger.sh with your command
+#   2. Make it executable: chmod +x /usr/local/bin/run-usb-keylogger.sh
+#   3. Use the simpler rule: ACTION=="add", SUBSYSTEM=="block", ENV{ID_FS_LABEL}=="VOLUME_LABEL", RUN+="/usr/local/bin/run-usb-keylogger.sh"
 #
 # ACTION=="add", SUBSYSTEM=="block", ENV{ID_FS_LABEL}=="VOLUME_LABEL", RUN+="/bin/bash -c 'sleep 2 && /bin/su username -c \"/run/media/username/VOLUME_LABEL/usb_autorun.sh\"'"
 

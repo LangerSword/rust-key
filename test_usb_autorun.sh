@@ -149,10 +149,11 @@ fi
 
 # Test script detection of binary (provide automated input)
 cd "$TEST_DIR"
-echo "no" | timeout 5 bash usb_autorun.sh > /tmp/test_output.txt 2>&1
-if grep -q "Operation cancelled" /tmp/test_output.txt; then
+TEST_OUTPUT=$(mktemp)
+echo "no" | timeout 5 bash usb_autorun.sh > "$TEST_OUTPUT" 2>&1
+if grep -q "Operation cancelled" "$TEST_OUTPUT"; then
     echo "✅ PASS: Script properly handles user cancellation"
-elif grep -q "rust-key binary" /tmp/test_output.txt; then
+elif grep -q "rust-key binary" "$TEST_OUTPUT"; then
     echo "✅ PASS: Script detects binary location"
 else
     echo "⚠️  WARNING: Script output may need verification"
@@ -160,7 +161,7 @@ fi
 
 # Cleanup
 rm -rf "$TEST_DIR"
-rm -f /tmp/test_output.txt
+rm -f "$TEST_OUTPUT"
 
 # Test 10: Check README references
 echo ""
