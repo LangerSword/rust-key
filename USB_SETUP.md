@@ -98,11 +98,12 @@ Create a udev rule that runs the script when the specific USB drive is detected:
 2. Create a udev rule at `/etc/udev/rules.d/99-usb-autorun.rules`:
    ```bash
    # Replace XXXX:YYYY with your USB vendor:product ID
-   # Replace $USB_MOUNT with your actual USB mount point
-   ACTION=="add", ATTRS{idVendor}=="XXXX", ATTRS{idProduct}=="YYYY", RUN+="$USB_MOUNT/usb_autorun.sh"
+   # Replace the path with your actual USB mount point (udev rules don't expand shell variables)
+   # Example: ACTION=="add", ATTRS{idVendor}=="1234", ATTRS{idProduct}=="5678", RUN+="/media/username/mydrive/usb_autorun.sh"
+   ACTION=="add", ATTRS{idVendor}=="XXXX", ATTRS{idProduct}=="YYYY", RUN+="/media/username/your_usb_name/usb_autorun.sh"
    ```
    
-   **Note**: The path in the udev rule must be the absolute path where your USB drive gets mounted. This may vary by system.
+   **Note**: The path in the udev rule must be an absolute path where your USB drive gets mounted. Udev rules do not support shell variables like `$USB_MOUNT`. Use your actual mount point path (e.g., `/media/yourname/USBDRIVE`).
 
 3. Reload udev rules:
    ```bash
