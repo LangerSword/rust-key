@@ -35,6 +35,8 @@ The compiled binary will be located at `target/release/rust-key`.
 1. **Format your USB drive** (if needed):
    - Use a common filesystem like ext4, FAT32, or exFAT
    - FAT32 is recommended for maximum compatibility
+   - **Note**: The script is designed to work with FAT32/exFAT filesystems which don't support Unix permissions
+   - The script automatically handles filesystem limitations when running from USB drives
 
 2. **Find your USB mount point**:
    ```bash
@@ -270,6 +272,19 @@ If you want to receive keystrokes remotely, you can use:
   - Is there network connectivity?
   - Check the keylogger output in `logs/keylog.txt` for error messages
   - Verify the webhook endpoint accepts POST requests with JSON
+
+### Script fails when run from /run/media (USB mount point)
+
+- **Causes**: 
+  - USB drives mounted in `/run/media` or `/media` often use FAT32/exFAT filesystems
+  - These filesystems don't support Unix file permissions or execute bits
+  - Mounts may have `noexec`, `nosuid` options that prevent direct script execution
+  
+- **Solution**: 
+  - The script has been updated to handle these scenarios automatically
+  - It copies itself to `/tmp` before re-executing with sudo to bypass mount restrictions
+  - It attempts direct execution first, then falls back to explicit shell invocation if needed
+  - No action required - the script handles FAT32/exFAT filesystems automatically
 
 ### USB drive fills up
 
