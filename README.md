@@ -142,14 +142,23 @@ For convenient deployment on external drives, this project includes a USB auto-r
 ### Quick Start
 
 1. Build the project: `cargo build --release`
-2. Copy to USB drive:
+2. Find your USB mount point:
    ```bash
-   cp target/release/rust-key /media/usb/
-   cp usb_autorun.sh /media/usb/
+   # Find where your USB drive is mounted
+   lsblk
+   # Common mount points:
+   # - Ubuntu/Debian: /media/$USER/VOLUME_NAME
+   # - Fedora/RHEL: /run/media/$USER/VOLUME_NAME
+   # - Manual: /mnt/usb or custom path
    ```
-3. On the target system, run:
+3. Copy to USB drive (replace `$USB_MOUNT` with your actual mount point):
    ```bash
-   cd /media/usb
+   cp target/release/rust-key $USB_MOUNT/
+   cp usb_autorun.sh $USB_MOUNT/
+   ```
+4. On the target system, run:
+   ```bash
+   cd $USB_MOUNT  # Replace with your USB mount point
    ./usb_autorun.sh
    ```
 
