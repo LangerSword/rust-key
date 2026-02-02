@@ -154,11 +154,16 @@ Create a udev rule that runs the script when the specific USB drive is detected:
 
 To stop the keylogger, you have two options:
 
-1. **Use the generated stop script**:
+1. **Use the generated stop script** (recommended):
    ```bash
    cd $USB_MOUNT  # Replace with your actual USB mount point
    ./stop_keylogger.sh
+   # or if chmod doesn't work on your filesystem:
+   bash stop_keylogger.sh
    ```
+   This script will:
+   - Stop the keylogger process
+   - Clean up any temporary files created in `/tmp` (if noexec workaround was used)
 
 2. **Manually kill the process**:
    ```bash
