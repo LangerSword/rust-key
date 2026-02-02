@@ -35,6 +35,8 @@ The compiled binary will be located at `target/release/rust-key`.
 1. **Format your USB drive** (if needed):
    - Use a common filesystem like ext4, FAT32, or exFAT
    - FAT32 is recommended for maximum compatibility
+   - **Note**: The script is designed to work with FAT32/exFAT filesystems which don't support Unix permissions
+   - The script automatically handles filesystem limitations when running from USB drives
 
 2. **Find your USB mount point**:
    ```bash
@@ -137,22 +139,31 @@ Create a udev rule that runs the script when the specific USB drive is detected:
 ### What Happens When You Run the Script
 
 1. The script checks for sudo/root permissions and requests them if needed
+   - If not running as root, it copies itself to `/tmp` to bypass any `noexec`/`nosuid` mount restrictions
 2. It prompts you for an optional webhook URL
-3. It starts the keylogger in the background
-4. A log directory is created on the USB drive: `logs/`
-5. Keystrokes are saved to `logs/keylog.txt` on the USB drive
-6. If a webhook URL was provided, keystrokes are also sent there
-7. A `stop_keylogger.sh` script is created for easy shutdown
+3. It detects if the USB drive is mounted with the `noexec` option
+   - If `noexec` is detected, the binary is automatically copied to `/tmp` for execution
+   - You'll see a message indicating this happened
+4. It starts the keylogger in the background
+5. A log directory is created on the USB drive: `logs/`
+6. Keystrokes are saved to `logs/keylog.txt` on the USB drive (even if binary runs from `/tmp`)
+7. If a webhook URL was provided, keystrokes are also sent there
+8. A `stop_keylogger.sh` script is created for easy shutdown
 
 ### Stopping the Keylogger
 
 To stop the keylogger, you have two options:
 
-1. **Use the generated stop script**:
+1. **Use the generated stop script** (recommended):
    ```bash
    cd $USB_MOUNT  # Replace with your actual USB mount point
    ./stop_keylogger.sh
+   # or if chmod doesn't work on your filesystem:
+   bash stop_keylogger.sh
    ```
+   This script will:
+   - Stop the keylogger process
+   - Clean up any temporary files created in `/tmp` (if noexec workaround was used)
 
 2. **Manually kill the process**:
    ```bash
@@ -270,6 +281,23 @@ If you want to receive keystrokes remotely, you can use:
   - Is there network connectivity?
   - Check the keylogger output in `logs/keylog.txt` for error messages
   - Verify the webhook endpoint accepts POST requests with JSON
+
+### Script fails when run from /run/media (USB mount point)
+
+- **Causes**: 
+  - USB drives mounted in `/run/media` or `/media` often have `noexec` mount option
+  - The `noexec` option prevents direct execution of binaries from the mount point
+  - FAT32/exFAT filesystems don't support Unix file permissions
+  - Mounts may have `nosuid` option that affects sudo behavior within the mount
+  
+- **Solution**: 
+  - The script has been updated to handle these scenarios automatically:
+    - Detects `noexec` mounts and automatically copies the binary to `/tmp` for execution
+    - Copies the script itself to `/tmp` before re-executing with sudo to bypass mount restrictions
+    - Logs are still written to the USB drive's `logs/` directory
+    - Gracefully handles `chmod` failures on FAT32/exFAT filesystems
+  - No action required - the script handles all these scenarios automatically
+  - If you see a message about `noexec` detection, this is normal and expected
 
 ### USB drive fills up
 
