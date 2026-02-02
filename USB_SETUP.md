@@ -47,8 +47,8 @@ The compiled binary will be located at `target/release/rust-key`.
    # - Older systems/manual: /mnt/usb or /media/usb
    
    # Set USB_MOUNT variable for convenience (replace with your actual path)
-   # Example: USB_MOUNT="/media/john/MyUSB"
-   USB_MOUNT="/media/$USER/USB_DRIVE"
+   # Example for Ubuntu/Debian:
+   USB_MOUNT="/media/john/MyUSB"
    ```
 
 3. **Copy files to the USB drive**:
@@ -100,8 +100,7 @@ Create a udev rule that runs the script when the specific USB drive is detected:
    ```bash
    # Replace XXXX:YYYY with your USB vendor:product ID
    # Replace the path with your actual USB mount point (udev rules don't expand shell variables)
-   # Example: ACTION=="add", ATTRS{idVendor}=="1234", ATTRS{idProduct}=="5678", RUN+="/media/john/MyUSB/usb_autorun.sh"
-   ACTION=="add", ATTRS{idVendor}=="XXXX", ATTRS{idProduct}=="YYYY", RUN+="/media/youruser/USB_DRIVE/usb_autorun.sh"
+   ACTION=="add", ATTRS{idVendor}=="XXXX", ATTRS{idProduct}=="YYYY", RUN+="/media/john/MyUSB/usb_autorun.sh"
    ```
    
    **Note**: The path in the udev rule must be an absolute path where your USB drive gets mounted. Udev rules do not support shell variables like `$USB_MOUNT`. Use your actual mount point path (e.g., `/media/john/MyUSB`).
