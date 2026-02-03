@@ -139,7 +139,15 @@ Batching configuration:
 - **Batch size**: 20 keystrokes per request
 - **Timeout**: 2 seconds (sends partial batch if no new keys)
 - **Connection timeout**: 10 seconds
-- **Certificate validation**: Disabled for compatibility with self-signed certificates and testing services
+- **Certificate validation**: By default, accepts invalid/self-signed certificates for testing compatibility
+
+⚠️ **Security Warning**: By default, TLS certificate validation is disabled (`danger_accept_invalid_certs=true`) to ensure compatibility with webhook testing services like webhook.site that may use self-signed certificates. This makes connections vulnerable to man-in-the-middle attacks.
+
+For production use with proper TLS certificates, enable strict validation:
+```bash
+export RUST_KEY_ACCEPT_INVALID_CERTS=false
+sudo ./target/release/rust-key https://your-secure-webhook.com/endpoint
+```
 
 ### Webhook Troubleshooting
 

