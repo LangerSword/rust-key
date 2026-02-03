@@ -138,6 +138,35 @@ When a webhook URL is provided, keystrokes are sent in batches as JSON POST requ
 Batching configuration:
 - **Batch size**: 20 keystrokes per request
 - **Timeout**: 2 seconds (sends partial batch if no new keys)
+- **Connection timeout**: 10 seconds
+- **Certificate validation**: Disabled for compatibility with self-signed certificates and testing services
+
+### Webhook Troubleshooting
+
+If your webhook isn't receiving data, check the `keylog.txt` file for diagnostic messages:
+
+```bash
+grep "WEBHOOK:" keylog.txt
+```
+
+Common issues and solutions:
+
+1. **Initial connectivity test failed**
+   - Check if the webhook URL is correct and accessible
+   - Verify your network connection and firewall settings
+   - Ensure the webhook service is running
+
+2. **Failed to send batch to webhook**
+   - DNS resolution issues: Verify the hostname resolves correctly
+   - Network connectivity: Check if you can reach the endpoint with curl
+   - Endpoint errors: The webhook service might be returning errors
+
+3. **HTTP non-2xx status codes**
+   - Check webhook service logs for error details
+   - Verify the endpoint accepts POST requests with JSON payloads
+   - Ensure Content-Type: application/json is acceptable
+
+The keylogger will continue to log keystrokes to file even if webhook delivery fails.
 
 ## Educational Use Cases
 
