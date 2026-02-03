@@ -50,7 +50,7 @@ fi
 
 # Test 5: Check key sections in run.sh
 echo ""
-echo "Test 6: Verify script contains key sections"
+echo "Test 5: Verify script contains key sections"
 
 if grep -q "Do you want to continue?" "$SCRIPT_DIR/run.sh"; then
     echo "✅ PASS: User confirmation prompt found"
@@ -68,7 +68,7 @@ fi
 
 # Test 6: Simulate script flow (without sudo)
 echo ""
-echo "Test 7: Simulate script flow without sudo"
+echo "Test 6: Simulate script flow without sudo"
 echo "  (This will check if the script properly detects non-root execution)"
 
 # Create a test environment
